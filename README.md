@@ -15,6 +15,66 @@
 
 ---
 
+## 🎮 Steam-Style Product Showcase
+
+<table>
+<tr>
+<td width="65%" valign="top">
+
+<!-- Steam Hero Animated Trailer / Banner -->
+<img src="assets/demo_preview.gif" alt="JimHa Animated Gameplay Trailer" width="100%" />
+
+<p align="center">
+  🎬 <b>Live Gameplay Trailer:</b> <i>Bouncing letters, particle fireworks, pentatonic chimes & 3s hold-to-exit HUD</i>
+  <br>
+  <a href="assets/demo_trailer.mp4"><b>▶ Download / Watch Full HD Video Trailer (assets/demo_trailer.mp4)</b></a>
+</p>
+
+</td>
+<td width="35%" valign="top">
+
+### 🕹️ Game Overview
+*Smash any button, paint the universe!* A gentle, toddler-proof sensory playground crafted with love for JimHa.
+
+- **Reviews**: ⭐⭐⭐⭐⭐ *Overwhelmingly Positive* (100% Toddler & Baby Approved 💖)
+- **Release Date**: Sep 29, 2026
+- **Developer**: Arafat Zahan *(with JimHa & AI Agent)*
+- **Publisher**: Purrfect Universe
+- **Audio Engine**: Zero-Dependency Pentatonic Chimes
+- **Display Target**: Wayland / X11 Fullscreen 60 FPS
+- **Tags**: `Casual` • `Kids` • `Tactile` • `Sensory` • `Toddler-Safe` • `Music-Box`
+
+</td>
+</tr>
+</table>
+
+### 📸 Gameplay Screenshots
+
+<table>
+<tr>
+<td width="50%">
+  <img src="assets/screenshot_2_jimha_crown.png" alt="J is for JimHa!" width="100%" />
+  <p align="center"><b>👑 J is for JimHa!</b><br><i>Spring bounce with royal crown & electric confetti</i></p>
+</td>
+<td width="50%">
+  <img src="assets/screenshot_3_easter_egg.png" alt="Jim Heart Easter Egg" width="100%" />
+  <p align="center"><b>💖 Jim Heart Easter Egg</b><br><i>The legendary Easter egg honoring the session's first spark</i></p>
+</td>
+</tr>
+<tr>
+<td width="50%">
+  <img src="assets/screenshot_4_supernova.png" alt="Cosmic Supernova" width="100%" />
+  <p align="center"><b>🌟 Cosmic Supernova</b><br><i>Pressing Space explodes rainbow starburst particles</i></p>
+</td>
+<td width="50%">
+  <img src="assets/screenshot_5_exit_hud.png" alt="Toddler-Safe Exit HUD" width="100%" />
+  <p align="center"><b>🛡️ Toddler-Safe Exit HUD</b><br><i>Hold ESC for 3.0s continuously to close; quick taps never exit</i></p>
+</td>
+</tr>
+</table>
+
+---
+
 ## 📖 The Origin Story
 
 **JimHa's Key Smash Game** was born during JimHa's very first **agentic pair programming session**. 
