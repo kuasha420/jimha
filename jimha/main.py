@@ -9,13 +9,14 @@ Exit protection: Press and hold ESC continuously for 3.0 seconds to quit.
 import logging
 import math
 import random
+import re
 import shutil
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger("jimha")
 
@@ -26,6 +27,7 @@ from PyQt6.QtGui import (
     QFocusEvent,
     QFont,
     QFontMetrics,
+    QIcon,
     QKeyEvent,
     QLinearGradient,
     QMouseEvent,
@@ -33,6 +35,7 @@ from PyQt6.QtGui import (
     QPainterPath,
     QPaintEvent,
     QPen,
+    QPixmap,
     QRadialGradient,
     QShowEvent,
 )
@@ -259,6 +262,96 @@ def ensure_kwin_shortcut_inhibition() -> bool:
         return False
 
 
+def query_open_windows() -> List[Dict[str, str]]:
+    """
+    Query live client windows currently managed by KWin via D-Bus WindowsRunner.
+
+    Extracts window match ID, window caption, and icon name. Automatically filters out
+    JimHa window instances and empty window titles. Deduplicates by match_id.
+    Returns a fallback desktop entry if no client windows are found or on D-Bus errors.
+    """
+    qdbus_bin = shutil.which("qdbus") or shutil.which("qdbus6") or "qdbus"
+    windows: List[Dict[str, str]] = []
+    seen = set()
+
+    try:
+        res = subprocess.run(
+            [qdbus_bin, "--literal", "org.kde.KWin", "/WindowsRunner", "org.kde.krunner1.Match", ""],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+        if res.returncode != 0:
+            logger.warning(
+                "query_open_windows D-Bus command failed (exit %d): %s",
+                res.returncode,
+                res.stderr.strip() if res.stderr else "",
+            )
+        elif res.stdout:
+            pattern = re.compile(r'\[Argument: \(sss[a-z0-9{}()]+\) "([^"]+)", "([^"]*)", "([^"]*)"')
+            for match in pattern.finditer(res.stdout):
+                match_id = match.group(1).strip()
+                title = match.group(2).strip()
+                icon = match.group(3).strip()
+
+                if not match_id or match_id in seen:
+                    continue
+                if not title or title.startswith("JimHa's Magical Key Smash Game"):
+                    continue
+
+                seen.add(match_id)
+                windows.append({"id": match_id, "title": title, "icon": icon})
+    except Exception as err:
+        logger.warning("query_open_windows failed: %s", err)
+
+    if not windows:
+        windows = [{"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}]
+
+    logger.debug("query_open_windows discovered %d windows: %s", len(windows), [w["title"] for w in windows])
+    return windows
+
+
+def activate_window_by_id(match_id: str) -> bool:
+    """
+    Activate a specific window or toggle desktop view via KWin D-Bus.
+
+    If match_id is 'desktop', requests KWin to show the desktop.
+    Otherwise invokes WindowsRunner Run with the given match_id.
+    Returns True if the invocation completed successfully.
+    """
+    qdbus_bin = shutil.which("qdbus") or shutil.which("qdbus6") or "qdbus"
+    try:
+        if match_id == "desktop":
+            res = subprocess.run(
+                [qdbus_bin, "org.kde.KWin", "/KWin", "showDesktop", "true"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+        else:
+            res = subprocess.run(
+                [qdbus_bin, "org.kde.KWin", "/WindowsRunner", "org.kde.krunner1.Run", match_id, ""],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+        if res.returncode != 0:
+            logger.warning(
+                "activate_window_by_id failed (exit %d): %s",
+                res.returncode,
+                res.stderr.strip() if res.stderr else "",
+            )
+            return False
+        logger.debug("activate_window_by_id(%s) succeeded", match_id)
+        return True
+    except Exception as err:
+        logger.warning("activate_window_by_id exception: %s", err)
+        return False
+
+
 class JimHaGame(QWidget):
     """Fullscreen interactive visual playground with long-hold ESC exit protection."""
 
@@ -332,6 +425,19 @@ class JimHaGame(QWidget):
         self.rekka_nav_last_action_time = 0.0
         self.rekka_nav_idle_timeout = 5.0
         self.rekka_nav_index = 0
+
+        # Option C Phase 3: In-Game Virtual Rekka Switcher Carousel
+        self.virtual_switcher_active: bool = False
+        self.virtual_switcher_windows: List[Dict[str, str]] = []
+        self.virtual_switcher_index: int = 0
+        self.virtual_switcher_last_action_time: float = 0.0
+        self.virtual_switcher_pixmaps: Dict[str, QPixmap] = {}
+
+        # Quick-Switch deferred handover timer
+        self._quick_switch_timer = QTimer(self)
+        self._quick_switch_timer.setSingleShot(True)
+        self._quick_switch_timer.timeout.connect(self._on_quick_switch_timeout)
+        self._pending_handover_target_id: Optional[str] = None
 
         # Frame timer (adaptive 60/30 FPS)
         self.last_frame_time = time.time()
@@ -430,6 +536,7 @@ class JimHaGame(QWidget):
             or self.esc_is_pressed
             or self.alt_tab_is_pressed
             or self.rekka_nav_active
+            or self.virtual_switcher_active
         )
         target_interval = 16 if has_active_fx else 33
         if self.timer.interval() != target_interval:
@@ -470,6 +577,12 @@ class JimHaGame(QWidget):
             if now - self.rekka_nav_last_action_time >= self.rekka_nav_idle_timeout:
                 self._handover_to_desktop()
                 return
+
+        # Option C Phase 3: Virtual Switcher idle timeout (15.0s gently returns to canvas without minimizing)
+        if self.virtual_switcher_active:
+            if now - self.virtual_switcher_last_action_time >= 15.0:
+                self.virtual_switcher_active = False
+                self.update()
 
         # Update Particles
         alive_particles: List[Particle] = []
@@ -527,17 +640,42 @@ class JimHaGame(QWidget):
         if not self.is_windowed and not self._exit_authorized:
             self._safe_grab_keyboard()
 
-    def _handover_to_desktop(self) -> None:
-        """Release exclusive keyboard grab and minimize JimHa to hand over control to desktop."""
+    def _handover_to_desktop(self, target_match_id: Optional[str] = None) -> None:
+        """Release exclusive keyboard grab, strip stays-on-top, and minimize JimHa to hand over control to desktop."""
+        if hasattr(self, "_quick_switch_timer"):
+            self._quick_switch_timer.stop()
+        if self._exit_authorized:
+            return
         self._handover_active = True
         self.alt_tab_is_pressed = False
         self.alt_tab_hold_progress = 0.0
         self.esc_is_pressed = False
         self.esc_hold_progress = 0.0
         self.rekka_nav_active = False
+        self.virtual_switcher_active = False
+        self._safe_release_keyboard()
         if not self.is_windowed:
-            self._safe_release_keyboard()
+            self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)
+            self.lower()
         self.showMinimized()
+        if target_match_id and not activate_window_by_id(target_match_id):
+            logger.warning("Handover window activation failed for id: %s", target_match_id)
+
+    def _trigger_quick_switch_handover(self, target_id: Optional[str]) -> None:
+        """Trigger visual banner and schedule deferred handover via managed timer."""
+        self.virtual_switcher_active = False
+        self.rekka_nav_active = False
+        self.trigger_key("⚡ QUICK SWITCH ⚡", "Desktop Handover Activated", "⚡", QColor("#FFD600"))
+        self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=30)
+        self._pending_handover_target_id = target_id
+        if hasattr(self, "_quick_switch_timer"):
+            self._quick_switch_timer.stop()
+            self._quick_switch_timer.start(150)
+
+    def _on_quick_switch_timeout(self) -> None:
+        """Execute deferred handover to target window if window is not destroyed/closed."""
+        if not self._exit_authorized:
+            self._handover_to_desktop(target_match_id=self._pending_handover_target_id)
 
     def _trigger_kwin_switch(self, reverse: bool = False) -> bool:
         """Advance forward or backward in window stack via native DBus or local state."""
@@ -564,22 +702,18 @@ class JimHaGame(QWidget):
         if event.type() == QEvent.Type.ActivationChange:
             if self.isActiveWindow() and not self.isMinimized():
                 self._handover_active = False
+                self.virtual_switcher_active = False
             if not self._handover_active and not self.isMinimized() and not self.isActiveWindow() and not self._exit_authorized and not self.is_windowed:
                 self.activateWindow()
                 self.raise_()
                 self.setFocus()
         elif event.type() == QEvent.Type.WindowStateChange:
-            if self._handover_active:
-                if not self.isMinimized():
-                    self._handover_active = False
-                    if not self.is_windowed and not self._exit_authorized:
-                        if not self.isFullScreen():
-                            self.showFullScreen()
-                        self._safe_grab_keyboard()
-            else:
-                if not self.isMinimized() and not self._exit_authorized and not self.is_windowed:
-                    if not self.isFullScreen():
-                        self.showFullScreen()
+            if not self.isMinimized():
+                self._handover_active = False
+                self.virtual_switcher_active = False
+                if not self.is_windowed and not self._exit_authorized:
+                    self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+                    self.showFullScreen()
                     self._safe_grab_keyboard()
         super().changeEvent(event)
 
@@ -599,6 +733,10 @@ class JimHaGame(QWidget):
             event.ignore()
             return
 
+        if hasattr(self, "_quick_switch_timer"):
+            self._quick_switch_timer.stop()
+        if hasattr(self, "timer"):
+            self.timer.stop()
         if hasattr(self, "sound_bank") and self.sound_bank:
             self.sound_bank.close()
         super().closeEvent(event)
@@ -606,6 +744,10 @@ class JimHaGame(QWidget):
     def force_close(self) -> None:
         """Programmatic teardown for automated test suites and headless rendering."""
         self._exit_authorized = True
+        if hasattr(self, "_quick_switch_timer"):
+            self._quick_switch_timer.stop()
+        if hasattr(self, "timer"):
+            self.timer.stop()
         self._safe_release_keyboard()
         self.close()
 
@@ -628,6 +770,7 @@ class JimHaGame(QWidget):
             self.esc_is_pressed = False
             self.esc_hold_progress = 0.0
             self.rekka_nav_active = False
+            self.virtual_switcher_active = False
             self.rekka_buffer.clear()
             if not event.isAutoRepeat():
                 if not self.alt_tab_is_pressed:
@@ -647,72 +790,65 @@ class JimHaGame(QWidget):
             self.alt_pressed = False
             self.tab_pressed = False
 
-        # 2. Rekka Navigator mode active key routing
-        if self.rekka_nav_active:
+        # 2. Virtual Switcher active key routing
+        if self.virtual_switcher_active:
             if key_code == Qt.Key.Key_Escape:
-                # Escape: aborts Rekka mode and returns immediately to JimHa canvas
-                self.rekka_nav_active = False
+                self.virtual_switcher_active = False
                 self.rekka_buffer.clear()
                 self.update()
                 return
             elif key_code in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                # Enter: commits handover, releases grab, and minimizes
-                self._handover_to_desktop()
+                if self.virtual_switcher_windows:
+                    idx = self.virtual_switcher_index % len(self.virtual_switcher_windows)
+                    target = self.virtual_switcher_windows[idx]["id"]
+                else:
+                    target = None
+                self._handover_to_desktop(target_match_id=target)
+                self.virtual_switcher_active = False
                 return
             elif key_code in (Qt.Key.Key_Right, Qt.Key.Key_Down):
-                # Add token to RekkaBuffer first to evaluate combo formation
                 token = "RIGHT" if key_code == Qt.Key.Key_Right else "DOWN"
                 self.rekka_buffer.add(token)
 
-                # 1. Complete combos trigger instant handover without firing Navigator switch
-                if self.rekka_buffer.matches(KONAMI_SEQUENCE):
-                    self.rekka_nav_active = False
-                    self.trigger_key("👑 30 LIVES GRANTED! 🚀💖✨", "30 Lives Granted! Konami Handover", "👑", QColor("#FF4081"))
-                    self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=60)
-                    self._handover_to_desktop()
-                    return
-                elif self.rekka_buffer.matches(QUICK_SWITCH_SEQUENCE):
-                    self.rekka_nav_active = False
-                    self.trigger_key("⚡ QUICK SWITCH ⚡", "Desktop Handover Activated", "⚡", QColor("#FFD600"))
-                    self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=30)
-                    QTimer.singleShot(150, self, self._handover_to_desktop)
+                if self.rekka_buffer.matches(QUICK_SWITCH_SEQUENCE):
+                    wins = query_open_windows()
+                    target_id = wins[0]["id"] if wins else None
+                    self._trigger_quick_switch_handover(target_id)
                     return
 
-                # 2. Check if the buffer is forming the Quick Switch sequence [UP, UP, DOWN].
-                # If so, do not fire a stray KWin window switch while the combo is being executed.
-                if self.rekka_buffer.ends_with(["UP", "UP", "DOWN"]):
-                    self.rekka_nav_last_action_time = time.time()
-                    self.update()
-                    return
-
-                # 3. Legitimate stack navigation forward
-                self.rekka_nav_index += 1
-                self.rekka_nav_last_action_time = time.time()
-                self._trigger_kwin_switch(reverse=False)
+                if self.virtual_switcher_windows:
+                    self.virtual_switcher_index = (self.virtual_switcher_index + 1) % len(self.virtual_switcher_windows)
+                self.virtual_switcher_last_action_time = time.time()
+                if self.sound_bank:
+                    self.sound_bank.play_key("ALT_TAB")
                 self.update()
                 return
             elif key_code in (Qt.Key.Key_Left, Qt.Key.Key_Up):
-                # ← / ↑: advances backward in window stack
-                self.rekka_nav_index -= 1
-                self.rekka_nav_last_action_time = time.time()
-                self._trigger_kwin_switch(reverse=True)
                 token = "LEFT" if key_code == Qt.Key.Key_Left else "UP"
                 self.rekka_buffer.add(token)
+                if self.virtual_switcher_windows:
+                    self.virtual_switcher_index = (self.virtual_switcher_index - 1) % len(self.virtual_switcher_windows)
+                self.virtual_switcher_last_action_time = time.time()
+                if self.sound_bank:
+                    self.sound_bank.play_key("ALT_TAB")
                 self.update()
                 return
             elif key_code in (Qt.Key.Key_B, Qt.Key.Key_A) or event.text().upper() in ("B", "A"):
                 token = "B" if (key_code == Qt.Key.Key_B or event.text().upper() == "B") else "A"
-                self.rekka_nav_last_action_time = time.time()
                 self.rekka_buffer.add(token)
                 if self.rekka_buffer.matches(KONAMI_SEQUENCE):
+                    if hasattr(self, "_quick_switch_timer"):
+                        self._quick_switch_timer.stop()
+                    self.virtual_switcher_active = False
                     self.trigger_key("👑 30 LIVES GRANTED! 🚀💖✨", "30 Lives Granted! Konami Handover", "👑", QColor("#FF4081"))
                     self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=60)
                     self._handover_to_desktop()
                     return
+                self.virtual_switcher_last_action_time = time.time()
                 self.update()
                 return
             else:
-                self.rekka_nav_active = False
+                self.virtual_switcher_active = False
                 self.rekka_buffer.clear()
 
         # 3. ESC Hold exit protection (3.0s continuous hold)
@@ -727,7 +863,7 @@ class JimHaGame(QWidget):
         self.esc_is_pressed = False
         self.esc_hold_progress = 0.0
 
-        # 4. Rekka Arcade Combo Buffer Processing (when not in navigator)
+        # 4. Rekka Arcade Combo Buffer Processing (when not in switcher)
         if key_code == Qt.Key.Key_Up:
             token = "UP"
         elif key_code == Qt.Key.Key_Down:
@@ -748,27 +884,23 @@ class JimHaGame(QWidget):
         self.rekka_buffer.add(token)
 
         if self.rekka_buffer.matches(KONAMI_SEQUENCE):
+            if hasattr(self, "_quick_switch_timer"):
+                self._quick_switch_timer.stop()
             self.trigger_key("👑 30 LIVES GRANTED! 🚀💖✨", "30 Lives Granted! Konami Handover", "👑", QColor("#FF4081"))
             self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=60)
             self._handover_to_desktop()
             return
         elif self.rekka_buffer.matches(QUICK_SWITCH_SEQUENCE):
-            self.rekka_nav_active = False
-            self.trigger_key("⚡ QUICK SWITCH ⚡", "Desktop Handover Activated", "⚡", QColor("#FFD600"))
-            self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=30)
-            QTimer.singleShot(150, self, self._handover_to_desktop)
+            wins = query_open_windows()
+            target_id = wins[0]["id"] if wins else None
+            self._trigger_quick_switch_handover(target_id)
             return
         elif self.rekka_buffer.matches(NAVIGATOR_SEQUENCE):
-            self.rekka_nav_active = True
-            self.rekka_nav_last_action_time = time.time()
-            self.rekka_nav_index = 0
-            self.current_key_title = "REKKA NAV"
-            self.current_subtitle = "🕹️ Switch App: [→ / ↓ Next] [← / ↑ Prev] [Enter Switch] [Esc Cancel]"
-            self.current_emoji = "🕹️"
-            self.current_color = QColor("#00E5FF")
-            self.card_age = 0.0
-            self.card_scale = 0.2
-            self.card_alpha = 1.0
+            self.virtual_switcher_active = True
+            self.virtual_switcher_windows = query_open_windows()
+            self.virtual_switcher_index = 0
+            self.virtual_switcher_last_action_time = time.time()
+            self.rekka_nav_active = False
             if self.sound_bank:
                 self.sound_bank.play_key("ALT_TAB")
             self._spawn_particle_burst(
@@ -974,6 +1106,10 @@ class JimHaGame(QWidget):
         if self.rekka_nav_active:
             self._draw_rekka_hud(painter, width, height)
 
+        # 9. Option C Phase 3: In-Game Virtual Rekka Switcher Carousel
+        if self.virtual_switcher_active:
+            self._draw_virtual_switcher(painter, width, height)
+
     def _draw_gate_hud(self, painter: QPainter, width: int, height: int) -> None:
         """Render Option A Parent Gate: Emerald/Gold radial countdown for Alt+Tab hold."""
         hud_center_x = width / 2.0
@@ -1054,6 +1190,160 @@ class JimHaGame(QWidget):
         painter.setPen(QColor("#FFFFFF"))
         tw = QFontMetrics(font).boundingRect(pill_text).width()
         painter.drawText(int(hud_center_x - tw / 2), int(hud_center_y + 5), pill_text)
+
+        painter.restore()
+
+    def _get_app_icon_pixmap(self, icon_name: Optional[str], size: int = 96) -> Optional[QPixmap]:
+        """Fetch and cache system application icon pixmap from theme with fallbacks."""
+        icon_name = (icon_name or "").strip()
+        cache_key = f"{icon_name}_{size}"
+        if cache_key in self.virtual_switcher_pixmaps:
+            pix = self.virtual_switcher_pixmaps[cache_key]
+            return pix if not pix.isNull() else None
+
+        candidates = [icon_name]
+        if "." in icon_name:
+            candidates.append(icon_name.split(".")[-1])
+        candidates.extend(["preferences-system-windows", "window-new", "application-x-executable"])
+
+        for name in candidates:
+            if not name:
+                continue
+            icon = QIcon.fromTheme(name)
+            if not icon.isNull():
+                pix = icon.pixmap(size, size)
+                if not pix.isNull():
+                    self.virtual_switcher_pixmaps[cache_key] = pix
+                    return pix
+
+        # Store empty sentinel pixmap to avoid thrashing filesystem on repeated misses
+        self.virtual_switcher_pixmaps[cache_key] = QPixmap()
+        return None
+
+    def _draw_virtual_switcher(self, painter: QPainter, width: int, height: int) -> None:
+        """Render arcade glassmorphic in-game virtual window switcher carousel."""
+        painter.save()
+
+        # 1. Dimmed backdrop overlay
+        painter.fillRect(0, 0, width, height, QColor(0, 0, 0, 185))
+
+        center_x = width / 2.0
+        center_y = height / 2.0
+
+        # 2. Top Title
+        title_font = QFont("Cantarell", 18, QFont.Weight.Bold)
+        painter.setFont(title_font)
+        painter.setPen(QColor("#00E5FF"))
+        top_title = "🕹️ REKKA VIRTUAL WINDOW SWITCHER 🕹️"
+        metrics = QFontMetrics(title_font)
+        tw = metrics.boundingRect(top_title).width()
+        painter.drawText(int(center_x - tw / 2.0), int(height * 0.14), top_title)
+
+        wins = self.virtual_switcher_windows
+        total = len(wins)
+        idx = self.virtual_switcher_index % total if total > 0 else 0
+        cur_win = wins[idx] if wins else {"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}
+
+        # 3. Flanking cards for previous and next windows
+        active_w = 540.0
+        active_h = 320.0
+        flank_w = 240.0
+        flank_h = 180.0
+        flank_gap = 30.0
+        flank_y = center_y - flank_h / 2.0
+        prev_x = (center_x - active_w / 2.0) - flank_gap - flank_w
+        next_x = (center_x + active_w / 2.0) + flank_gap
+
+        if total > 1:
+            flank_font = QFont("Cantarell", 11, QFont.Weight.Medium)
+            # Previous window card (left)
+            prev_win = wins[(idx - 1) % total]
+            painter.setBrush(QColor(15, 25, 45, int(240 * 0.45)))
+            painter.setPen(QPen(QColor(0, 229, 255, int(255 * 0.45)), 2))
+            painter.drawRoundedRect(QRectF(prev_x, flank_y, flank_w, flank_h), 18, 18)
+
+            prev_pix = self._get_app_icon_pixmap(prev_win.get("icon", ""), size=48)
+            if prev_pix and not prev_pix.isNull():
+                painter.drawPixmap(int(prev_x + flank_w / 2.0 - 24), int(flank_y + 35), prev_pix)
+            else:
+                painter.setFont(QFont("Cantarell", 28))
+                painter.setPen(QColor(255, 255, 255, int(255 * 0.6)))
+                painter.drawText(int(prev_x + flank_w / 2.0 - 18), int(flank_y + 65), "🖥️")
+
+            painter.setFont(flank_font)
+            painter.setPen(QColor(255, 255, 255, int(255 * 0.65)))
+            prev_elided = QFontMetrics(flank_font).elidedText(prev_win.get("title", ""), Qt.TextElideMode.ElideMiddle, int(flank_w - 24))
+            ptw = QFontMetrics(flank_font).boundingRect(prev_elided).width()
+            painter.drawText(int(prev_x + flank_w / 2.0 - ptw / 2.0), int(flank_y + flank_h - 30), prev_elided)
+
+            # Next window card (right)
+            next_win = wins[(idx + 1) % total]
+            painter.setBrush(QColor(15, 25, 45, int(240 * 0.45)))
+            painter.setPen(QPen(QColor(0, 229, 255, int(255 * 0.45)), 2))
+            painter.drawRoundedRect(QRectF(next_x, flank_y, flank_w, flank_h), 18, 18)
+
+            next_pix = self._get_app_icon_pixmap(next_win.get("icon", ""), size=48)
+            if next_pix and not next_pix.isNull():
+                painter.drawPixmap(int(next_x + flank_w / 2.0 - 24), int(flank_y + 35), next_pix)
+            else:
+                painter.setFont(QFont("Cantarell", 28))
+                painter.setPen(QColor(255, 255, 255, int(255 * 0.6)))
+                painter.drawText(int(next_x + flank_w / 2.0 - 18), int(flank_y + 65), "🖥️")
+
+            painter.setFont(flank_font)
+            painter.setPen(QColor(255, 255, 255, int(255 * 0.65)))
+            next_elided = QFontMetrics(flank_font).elidedText(next_win.get("title", ""), Qt.TextElideMode.ElideMiddle, int(flank_w - 24))
+            ntw = QFontMetrics(flank_font).boundingRect(next_elided).width()
+            painter.drawText(int(next_x + flank_w / 2.0 - ntw / 2.0), int(flank_y + flank_h - 30), next_elided)
+
+        # 4. Centered Active Window Card
+        active_rect = QRectF(center_x - active_w / 2.0, center_y - active_h / 2.0, active_w, active_h)
+        painter.setBrush(QColor(15, 25, 45, 240))
+        painter.setPen(QPen(QColor("#FFD600"), 3))
+        painter.drawRoundedRect(active_rect, 24, 24)
+
+        # Draw Native Application Icon (centered at hud_center_y - 45)
+        icon_pix = self._get_app_icon_pixmap(cur_win.get("icon", ""), size=96)
+        if icon_pix and not icon_pix.isNull():
+            painter.drawPixmap(int(center_x - 48), int(center_y - 45 - 48), icon_pix)
+        else:
+            badge_font = QFont("Cantarell", 48)
+            painter.setFont(badge_font)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.drawText(int(center_x - 30), int(center_y - 45 + 18), "🖥️")
+
+        # Window Title / Caption (font 15 bold, white, elided)
+        cap_font = QFont("Cantarell", 15, QFont.Weight.Bold)
+        painter.setFont(cap_font)
+        painter.setPen(QColor("#FFFFFF"))
+        cap_metrics = QFontMetrics(cap_font)
+        caption_elided = cap_metrics.elidedText(cur_win.get("title", "Unknown"), Qt.TextElideMode.ElideMiddle, int(active_w - 60))
+        cw = cap_metrics.boundingRect(caption_elided).width()
+        painter.drawText(int(center_x - cw / 2.0), int(center_y + 40), caption_elided)
+
+        # Position Pill: Window [ X of Y ] in font 11 bold cyan
+        pos_font = QFont("Cantarell", 11, QFont.Weight.Bold)
+        painter.setFont(pos_font)
+        painter.setPen(QColor("#00E5FF"))
+        pos_str = f"Window [ {idx + 1} of {max(1, total)} ]"
+        pos_w = QFontMetrics(pos_font).boundingRect(pos_str).width()
+        painter.drawText(int(center_x - pos_w / 2.0), int(center_y + 80), pos_str)
+
+        # 5. Instruction Footer at bottom
+        footer_str = "[← / ↑ Prev]  •  [→ / ↓ Next]  •  [ENTER: Switch to App]  •  [ESC: Stay in JimHa]"
+        footer_font = QFont("Cantarell", 12, QFont.Weight.Bold)
+        painter.setFont(footer_font)
+        foot_metrics = QFontMetrics(footer_font)
+        fw = foot_metrics.boundingRect(footer_str).width()
+        footer_y = height * 0.88
+
+        pill_rect = QRectF(center_x - fw / 2.0 - 20, footer_y - 20, fw + 40, 40)
+        painter.setBrush(QColor(15, 15, 30, 220))
+        painter.setPen(QPen(QColor("#00E5FF"), 1.5))
+        painter.drawRoundedRect(pill_rect, 20, 20)
+
+        painter.setPen(QColor("#FFFFFF"))
+        painter.drawText(int(center_x - fw / 2.0), int(footer_y + 5), footer_str)
 
         painter.restore()
 

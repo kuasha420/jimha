@@ -25,7 +25,14 @@ from PyQt6.QtGui import QCloseEvent, QColor, QFocusEvent, QKeyEvent
 from PyQt6.QtWidgets import QApplication
 
 from jimha.sound_synth import SoundBank, generate_chime_wav
-from jimha.main import JimHaGame, ALPHABET_COMPANIONS, RekkaBuffer, ensure_kwin_shortcut_inhibition
+from jimha.main import (
+    JimHaGame,
+    ALPHABET_COMPANIONS,
+    RekkaBuffer,
+    ensure_kwin_shortcut_inhibition,
+    query_open_windows,
+    activate_window_by_id,
+)
 
 
 class TestRekkaBuffer(unittest.TestCase):
@@ -274,20 +281,25 @@ class TestJimHa(unittest.TestCase):
         game.resize(800, 600)
         game.show()
 
-        # Send [UP, UP, DOWN, DOWN]
-        for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
-            ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
+        mock_windows = [{"id": "win_quick_1", "title": "Quick App", "icon": "quick-app"}]
+        with patch("jimha.main.query_open_windows", return_value=mock_windows), \
+             patch("jimha.main.activate_window_by_id") as mock_act:
+            # Send [UP, UP, DOWN, DOWN]
+            for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
+                ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
 
-        self.assertEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
-        self.assertEqual(game.current_subtitle, "Desktop Handover Activated")
-        self.assertFalse(game.isMinimized(), "Quick-Switch must render visual feedback before minimizing")
+            self.assertEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
+            self.assertEqual(game.current_subtitle, "Desktop Handover Activated")
+            self.assertFalse(game.isMinimized(), "Quick-Switch must render visual feedback before minimizing")
 
-        # Allow singleShot 150ms delay to elapse and trigger handover
-        time.sleep(0.2)
-        QApplication.processEvents()
-        self.assertTrue(game.isMinimized(), "Quick-Switch must minimize the window after 150ms delay")
-        self.assertTrue(game._handover_active, "Handover flag must be set upon minimization")
+            # Allow singleShot 150ms delay to elapse and trigger handover
+            time.sleep(0.2)
+            QApplication.processEvents()
+            self.assertTrue(game.isMinimized(), "Quick-Switch must minimize the window after 150ms delay")
+            self.assertTrue(game._handover_active, "Handover flag must be set upon minimization")
+            mock_act.assert_called_once_with("win_quick_1")
+
         game.force_close()
 
     def test_13_rekka_timeout_decay(self):
@@ -297,46 +309,49 @@ class TestJimHa(unittest.TestCase):
         game.resize(800, 600)
         game.show()
 
-        # Press [UP, UP] -> enters Rekka Navigator mode
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
-        self.assertTrue(game.rekka_nav_active, "Double UP must enter Rekka Navigator mode")
+        mock_windows = [{"id": "win_decay_1", "title": "Decay App", "icon": "decay-app"}]
+        with patch("jimha.main.query_open_windows", return_value=mock_windows), \
+             patch("jimha.main.activate_window_by_id"):
+            # Press [UP, UP] -> enters Virtual Switcher mode
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
+            self.assertTrue(game.virtual_switcher_active, "Double UP must enter Virtual Switcher mode")
 
-        # Test Escape abort in Navigator mode
-        ev_esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_esc)
-        self.assertFalse(game.rekka_nav_active, "Escape must abort Rekka Navigator mode")
-        self.assertFalse(game.isMinimized(), "Aborting Rekka mode must not minimize")
+            # Test Escape abort in Virtual Switcher mode
+            ev_esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_esc)
+            self.assertFalse(game.virtual_switcher_active, "Escape must abort Virtual Switcher mode")
+            self.assertFalse(game.isMinimized(), "Aborting Virtual Switcher mode must not minimize")
 
-        # Re-enter Navigator with [UP, UP]
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
-        self.assertTrue(game.rekka_nav_active)
+            # Re-enter Virtual Switcher with [UP, UP]
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
+            self.assertTrue(game.virtual_switcher_active)
 
-        # Wait past decay timeout (0.15s > 0.1s)
-        time.sleep(0.15)
-        game._on_tick()
+            # Wait past decay timeout (0.15s > 0.1s)
+            time.sleep(0.15)
+            game._on_tick()
 
-        # Send [DOWN, DOWN]
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
+            # Send [DOWN, DOWN]
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
 
-        # Because timeout decayed the buffer, it must NOT trigger Quick-Switch
-        self.assertNotEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
+            # Because timeout decayed the buffer, it must NOT trigger Quick-Switch
+            self.assertNotEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
 
-        # Re-enter Navigator organically with [UP, UP] and commit via Enter
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
-        self.assertTrue(game.rekka_nav_active)
+            # Re-enter Virtual Switcher organically with [UP, UP] and commit via Enter
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
+            self.assertTrue(game.virtual_switcher_active)
 
-        ev_enter = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_enter)
-        self.assertFalse(game.rekka_nav_active)
-        self.assertTrue(game.isMinimized(), "Enter in Navigator mode must commit handover and minimize")
+            ev_enter = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_enter)
+            self.assertFalse(game.virtual_switcher_active)
+            self.assertTrue(game.isMinimized(), "Enter in Virtual Switcher mode must commit handover and minimize")
 
         game.force_close()
 
@@ -346,33 +361,36 @@ class TestJimHa(unittest.TestCase):
         game.resize(800, 600)
         game.show()
 
-        konami_keys = [
-            (Qt.Key.Key_Up, ""),
-            (Qt.Key.Key_Up, ""),
-            (Qt.Key.Key_Down, ""),
-            (Qt.Key.Key_Down, ""),
-            (Qt.Key.Key_Left, ""),
-            (Qt.Key.Key_Right, ""),
-            (Qt.Key.Key_Left, ""),
-            (Qt.Key.Key_Right, ""),
-            (Qt.Key.Key_B, "b"),
-            (Qt.Key.Key_A, "a"),
-        ]
+        mock_windows = [{"id": "win_konami_1", "title": "Konami App", "icon": "konami-app"}]
+        with patch("jimha.main.query_open_windows", return_value=mock_windows), \
+             patch("jimha.main.activate_window_by_id"):
+            konami_keys = [
+                (Qt.Key.Key_Up, ""),
+                (Qt.Key.Key_Up, ""),
+                (Qt.Key.Key_Down, ""),
+                (Qt.Key.Key_Down, ""),
+                (Qt.Key.Key_Left, ""),
+                (Qt.Key.Key_Right, ""),
+                (Qt.Key.Key_Left, ""),
+                (Qt.Key.Key_Right, ""),
+                (Qt.Key.Key_B, "b"),
+                (Qt.Key.Key_A, "a"),
+            ]
 
-        # Feed first 9 keys
-        for key, text in konami_keys[:-1]:
-            ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier, text)
-            game.keyPressEvent(ev)
+            # Feed first 9 keys
+            for key, text in konami_keys[:-1]:
+                ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier, text)
+                game.keyPressEvent(ev)
 
-        # Clear particles right before final 'A' key to strictly measure Konami burst
-        game.particles.clear()
-        final_key, final_text = konami_keys[-1]
-        ev_final = QKeyEvent(QEvent.Type.KeyPress, final_key, Qt.KeyboardModifier.NoModifier, final_text)
-        game.keyPressEvent(ev_final)
+            # Clear particles right before final 'A' key to strictly measure Konami burst
+            game.particles.clear()
+            final_key, final_text = konami_keys[-1]
+            ev_final = QKeyEvent(QEvent.Type.KeyPress, final_key, Qt.KeyboardModifier.NoModifier, final_text)
+            game.keyPressEvent(ev_final)
 
-        self.assertEqual(game.current_key_title, "👑 30 LIVES GRANTED! 🚀💖✨")
-        self.assertTrue(game.isMinimized(), "Konami code must handover and minimize")
-        self.assertGreaterEqual(len(game.particles), 60, "Konami explosion must spawn at least 60 particles")
+            self.assertEqual(game.current_key_title, "👑 30 LIVES GRANTED! 🚀💖✨")
+            self.assertTrue(game.isMinimized(), "Konami code must handover and minimize")
+            self.assertGreaterEqual(len(game.particles), 60, "Konami explosion must spawn at least 60 particles")
 
         game.force_close()
 
@@ -399,68 +417,88 @@ class TestJimHa(unittest.TestCase):
         game.force_close()
 
     def test_16_rekka_navigator_idle_timeout(self):
-        """Verify Rekka Navigator idle timeout organically commits handover and minimizes."""
+        """Verify Virtual Switcher 15.0s idle timeout gently returns to canvas without minimizing."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
-        game.rekka_nav_idle_timeout = 0.1  # Fast test duration
         game.resize(800, 600)
         game.show()
 
-        # Organically enter Navigator via [UP, UP]
+        # Organically enter Virtual Switcher via [UP, UP]
         for _ in range(2):
             ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
             game.keyPressEvent(ev)
-        self.assertTrue(game.rekka_nav_active, "Double UP must enter Rekka Navigator mode")
+        self.assertTrue(game.virtual_switcher_active, "Double UP must enter Virtual Switcher mode")
 
-        # Wait past idle timeout
-        time.sleep(0.15)
+        # Simulate 15.0s idle timeout passing
+        game.virtual_switcher_last_action_time = time.time() - 16.0
         game._on_tick()
 
-        self.assertFalse(game.rekka_nav_active, "Idle timeout must exit Navigator mode")
-        self.assertTrue(game.isMinimized(), "Idle timeout must commit handover and minimize")
+        self.assertFalse(game.virtual_switcher_active, "Idle timeout must exit Virtual Switcher mode")
+        self.assertFalse(game.isMinimized(), "Virtual Switcher idle timeout must gently return to canvas without minimizing")
         game.force_close()
 
     def test_17_rekka_navigator_stack_walking(self):
-        """Verify Rekka Navigator arrow keys walk stack (→, ↓, ←, ↑) and refresh activity time."""
+        """Verify Virtual Switcher arrow keys step index with wrapping and refresh activity time."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
         game.resize(800, 600)
         game.show()
 
-        # Organically enter Navigator via [UP, UP]
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
-        self.assertTrue(game.rekka_nav_active)
-        self.assertEqual(game.rekka_nav_index, 0)
-        t_init = game.rekka_nav_last_action_time
+        mock_windows = [
+            {"id": "win1", "title": "App 1", "icon": "app1"},
+            {"id": "win2", "title": "App 2", "icon": "app2"},
+            {"id": "win3", "title": "App 3", "icon": "app3"},
+        ]
 
-        # Paint HUD organically in Navigator mode
-        game.repaint()
+        with patch("jimha.main.query_open_windows", return_value=mock_windows):
+            # Organically enter Virtual Switcher via [UP, UP]
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
 
-        # Press RIGHT (→): advance forward
-        time.sleep(0.01)
-        ev_right = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_right)
-        self.assertEqual(game.rekka_nav_index, 1, "Right arrow must advance stack index forward")
-        self.assertGreaterEqual(game.rekka_nav_last_action_time, t_init)
+            self.assertTrue(game.virtual_switcher_active)
+            self.assertEqual(game.virtual_switcher_index, 0)
+            self.assertEqual(len(game.virtual_switcher_windows), 3)
+            t_init = game.virtual_switcher_last_action_time
 
-        # Press LEFT (←): advance backward
-        t_prev = game.rekka_nav_last_action_time
-        time.sleep(0.01)
-        ev_left = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Left, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_left)
-        self.assertEqual(game.rekka_nav_index, 0, "Left arrow must advance stack index backward")
-        self.assertGreaterEqual(game.rekka_nav_last_action_time, t_prev)
+            # Paint HUD organically in Virtual Switcher mode
+            game.repaint()
 
-        # Press UP (↑): advance backward
-        ev_up = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_up)
-        self.assertEqual(game.rekka_nav_index, -1, "Up arrow in navigator must advance backward")
+            # Press DOWN: advance forward organically
+            time.sleep(0.01)
+            ev_down = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_down)
+            self.assertEqual(game.virtual_switcher_index, 1, "Down arrow must advance stack index forward")
+            self.assertGreaterEqual(game.virtual_switcher_last_action_time, t_init)
 
-        # Press Escape: aborts navigator cleanly
-        ev_esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
-        game.keyPressEvent(ev_esc)
-        self.assertFalse(game.rekka_nav_active, "Escape must abort Navigator mode")
-        self.assertFalse(game.isMinimized(), "Escape abort must not minimize")
+            # Press RIGHT (→): advance forward
+            t_prev = game.virtual_switcher_last_action_time
+            time.sleep(0.01)
+            ev_right = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_right)
+            self.assertEqual(game.virtual_switcher_index, 2, "Right arrow must advance stack index forward")
+            self.assertGreaterEqual(game.virtual_switcher_last_action_time, t_prev)
+
+            # Press LEFT (←): advance backward
+            t_prev2 = game.virtual_switcher_last_action_time
+            time.sleep(0.01)
+            ev_left = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Left, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_left)
+            self.assertEqual(game.virtual_switcher_index, 1, "Left arrow must advance stack index backward")
+            self.assertGreaterEqual(game.virtual_switcher_last_action_time, t_prev2)
+
+            # Press UP (↑): advance backward
+            ev_up = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_up)
+            self.assertEqual(game.virtual_switcher_index, 0)
+
+            # Press UP (↑): advance backward with wraparound (0 -> 2)
+            game.keyPressEvent(ev_up)
+            self.assertEqual(game.virtual_switcher_index, 2, "Up arrow in virtual switcher must wrap backward to last window")
+
+            # Press Escape: aborts switcher cleanly
+            ev_esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_esc)
+            self.assertFalse(game.virtual_switcher_active, "Escape must abort Virtual Switcher mode")
+            self.assertFalse(game.isMinimized(), "Escape abort must not minimize")
 
         game.force_close()
 
@@ -628,27 +666,282 @@ class TestJimHa(unittest.TestCase):
             self.assertEqual(mock_run.call_count, 1)
 
     def test_22_navigator_sequence_visual_takeover(self):
-        """Verify [UP, UP] triggers REKKA NAV visual takeover card and is not overwritten by UP."""
+        """Verify [UP, UP] triggers Virtual Switcher activation."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
         game.resize(800, 600)
         game.show()
 
-        # Send [UP, UP]
-        for _ in range(2):
-            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
-            game.keyPressEvent(ev)
+        mock_windows = [{"id": "win_nav_1", "title": "Nav App", "icon": "nav-app"}]
+        with patch("jimha.main.query_open_windows", return_value=mock_windows):
+            # Send [UP, UP]
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
 
-        self.assertTrue(game.rekka_nav_active, "Double UP must activate Rekka Navigator")
-        self.assertEqual(game.current_key_title, "REKKA NAV", "Title must be REKKA NAV and not overwritten by UP")
-        self.assertEqual(
-            game.current_subtitle,
-            "🕹️ Switch App: [→ / ↓ Next] [← / ↑ Prev] [Enter Switch] [Esc Cancel]",
+            self.assertTrue(game.virtual_switcher_active, "Double UP must activate Virtual Switcher")
+            self.assertGreaterEqual(len(game.particles), 20, "Virtual Switcher activation must spawn at least 20 particles")
+
+        game.force_close()
+
+    def test_23_query_open_windows_parser(self):
+        """Verify query_open_windows parses qdbus output, filters JimHa/empty titles, and deduplicates."""
+        sample_qdbus_output = (
+            '[Argument: a(sssuda{sv}) {'
+            '[Argument: (sssida{sv}) "0_{uuid1}", "jimha — Dolphin", "org.kde.dolphin", 30, 0.5, [Argument: a{sv} {}]], '
+            '[Argument: (sssida{sv}) "0_{uuid2}", "JimHa\'s Magical Key Smash Game", "jimha", 30, 0.5, [Argument: a{sv} {}]], '
+            '[Argument: (sssida{sv}) "0_{uuid3}", "", "empty-icon", 30, 0.5, [Argument: a{sv} {}]], '
+            '[Argument: (sssida{sv}) "0_{uuid1}", "Duplicate Dolphin", "org.kde.dolphin", 30, 0.5, [Argument: a{sv} {}]], '
+            '[Argument: (sssida{sv}) "0_{uuid4}", "Mozilla Firefox", "firefox", 30, 0.5, [Argument: a{sv} {}]]'
+            '}]'
         )
-        self.assertEqual(game.current_emoji, "🕹️")
-        self.assertEqual(game.current_color, QColor("#00E5FF"))
-        self.assertEqual(game.rekka_nav_idle_timeout, 5.0, "Idle timeout must be 5.0 seconds")
-        self.assertGreaterEqual(len(game.particles), 20, "Navigator activation must spawn at least 20 particles")
 
+        with patch("subprocess.run") as mock_run:
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            mock_res.stdout = sample_qdbus_output
+            mock_run.return_value = mock_res
+
+            wins = query_open_windows()
+
+            self.assertEqual(len(wins), 2)
+            self.assertEqual(wins[0]["id"], "0_{uuid1}")
+            self.assertEqual(wins[0]["title"], "jimha — Dolphin")
+            self.assertEqual(wins[0]["icon"], "org.kde.dolphin")
+
+            self.assertEqual(wins[1]["id"], "0_{uuid4}")
+            self.assertEqual(wins[1]["title"], "Mozilla Firefox")
+            self.assertEqual(wins[1]["icon"], "firefox")
+
+        # Fallback when empty output or no windows found
+        with patch("subprocess.run") as mock_run:
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            mock_res.stdout = "[]"
+            mock_run.return_value = mock_res
+
+            fallback_wins = query_open_windows()
+            self.assertEqual(fallback_wins, [{"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}])
+
+        # Fallback when subprocess raises exception
+        with patch("subprocess.run", side_effect=subprocess.SubprocessError("DBus timeout")):
+            err_wins = query_open_windows()
+            self.assertEqual(err_wins, [{"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}])
+
+    def test_24_activate_window_by_id_dbus(self):
+        """Verify activate_window_by_id calls /WindowsRunner Run or /KWin showDesktop."""
+        with patch("subprocess.run") as mock_run, patch("shutil.which", return_value="/usr/bin/qdbus"):
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            mock_run.return_value = mock_res
+
+            # Desktop target
+            res_desk = activate_window_by_id("desktop")
+            self.assertTrue(res_desk)
+            mock_run.assert_called_with(
+                ["/usr/bin/qdbus", "org.kde.KWin", "/KWin", "showDesktop", "true"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+
+            # Application window target
+            res_win = activate_window_by_id("0_{target_win_id}")
+            self.assertTrue(res_win)
+            mock_run.assert_called_with(
+                ["/usr/bin/qdbus", "org.kde.KWin", "/WindowsRunner", "org.kde.krunner1.Run", "0_{target_win_id}", ""],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+
+        # Exception handling returns False
+        with patch("subprocess.run", side_effect=Exception("D-Bus failure")):
+            res_fail = activate_window_by_id("0_{target_win_id}")
+            self.assertFalse(res_fail)
+
+    def test_25_virtual_switcher_navigation_and_wraparound(self):
+        """Verify Virtual Switcher carousel navigation, wraparound, Escape cancel, and Enter commit."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.show()
+
+        mock_windows = [
+            {"id": "win1", "title": "App 1", "icon": "app1"},
+            {"id": "win2", "title": "App 2", "icon": "app2"},
+            {"id": "win3", "title": "App 3", "icon": "app3"},
+        ]
+
+        with patch("jimha.main.query_open_windows", return_value=mock_windows):
+            # Organically send [UP, UP]
+            for _ in range(2):
+                ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
+
+            self.assertTrue(game.virtual_switcher_active)
+            self.assertEqual(game.virtual_switcher_index, 0)
+            self.assertEqual(len(game.virtual_switcher_windows), 3)
+
+            # Paint offscreen to verify _draw_virtual_switcher executes cleanly
+            game.repaint()
+
+            # DOWN immediately after [UP, UP] -> advances from 0 to 1
+            ev_d = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_d)
+            self.assertEqual(game.virtual_switcher_index, 1, "Down arrow immediately after entering switcher must advance index to 1")
+
+            # RIGHT -> advances from 1 to 2
+            ev_r = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_r)
+            self.assertEqual(game.virtual_switcher_index, 2)
+
+            # DOWN -> wraps from 2 to 0
+            game.keyPressEvent(ev_d)
+            self.assertEqual(game.virtual_switcher_index, 0)
+
+            # LEFT -> wraps from 0 to 2
+            ev_l = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Left, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_l)
+            self.assertEqual(game.virtual_switcher_index, 2)
+
+            # UP -> steps backward from 2 to 1
+            ev_u = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_u)
+            self.assertEqual(game.virtual_switcher_index, 1)
+
+            # UP -> steps backward from 1 to 0
+            game.keyPressEvent(ev_u)
+            self.assertEqual(game.virtual_switcher_index, 0)
+
+            # Escape -> cancels switcher without minimizing
+            ev_esc = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev_esc)
+            self.assertFalse(game.virtual_switcher_active)
+            self.assertFalse(game.isMinimized())
+
+            # Re-enter via [UP, UP]
+            for _ in range(2):
+                game.keyPressEvent(ev_u)
+            self.assertTrue(game.virtual_switcher_active)
+            self.assertEqual(game.virtual_switcher_index, 0)
+
+            # Step to index 1 (win2)
+            game.keyPressEvent(ev_r)
+            self.assertEqual(game.virtual_switcher_index, 1)
+
+            # Enter -> commits handover to win2
+            with patch("jimha.main.activate_window_by_id") as mock_act:
+                ev_enter = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev_enter)
+
+                self.assertFalse(game.virtual_switcher_active)
+                self.assertTrue(game.isMinimized())
+                self.assertTrue(game._handover_active)
+                mock_act.assert_called_once_with("win2")
+
+        game.force_close()
+
+    def test_26_quick_switch_definite_handover(self):
+        """Verify Quick Switch queries windows, calls _handover_to_desktop with target ID, and strips stays-on-top."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.show()
+
+        mock_windows = [{"id": "target_win_99", "title": "Editor", "icon": "kate"}]
+
+        with patch("jimha.main.query_open_windows", return_value=mock_windows), \
+             patch("jimha.main.activate_window_by_id") as mock_act:
+
+            # Send [UP, UP, DOWN, DOWN]
+            for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
+                ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
+                game.keyPressEvent(ev)
+
+            self.assertEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
+            self.assertEqual(game.current_subtitle, "Desktop Handover Activated")
+            self.assertFalse(game.isMinimized())
+
+            # Allow 150ms singleShot delay to elapse
+            time.sleep(0.2)
+            QApplication.processEvents()
+
+            self.assertTrue(game.isMinimized(), "Quick Switch must minimize JimHa")
+            self.assertTrue(game._handover_active, "Handover flag must be set")
+            # Verify WindowStaysOnTopHint stripped
+            self.assertFalse(
+                bool(game.windowFlags() & Qt.WindowType.WindowStaysOnTopHint),
+                "WindowStaysOnTopHint must be stripped on handover",
+            )
+            mock_act.assert_called_once_with("target_win_99")
+
+        game.force_close()
+
+    def test_27_get_app_icon_pixmap_none_and_negative_cache(self):
+        """Verify _get_app_icon_pixmap safely handles None/empty strings and caches misses."""
+        game = JimHaGame(enable_audio=False)
+
+        # None icon name must not raise TypeError
+        res_none = game._get_app_icon_pixmap(None, size=96)
+        self.assertIsNone(res_none)
+        self.assertIn("_96", game.virtual_switcher_pixmaps)
+        self.assertTrue(game.virtual_switcher_pixmaps["_96"].isNull())
+
+        # Second lookup should hit cache in O(1) without touching QIcon
+        with patch("PyQt6.QtGui.QIcon.fromTheme") as mock_from_theme:
+            res_cached = game._get_app_icon_pixmap(None, size=96)
+            self.assertIsNone(res_cached)
+            mock_from_theme.assert_not_called()
+
+        game.force_close()
+
+    def test_28_query_open_windows_warning_logging(self):
+        """Verify query_open_windows logs warning on non-zero exit code or exception."""
+        # Non-zero return code
+        with patch("subprocess.run") as mock_run, self.assertLogs("jimha", level="WARNING") as cm:
+            mock_res = MagicMock()
+            mock_res.returncode = 1
+            mock_res.stderr = "org.freedesktop.DBus.Error.ServiceUnknown"
+            mock_run.return_value = mock_res
+
+            wins = query_open_windows()
+            self.assertEqual(wins, [{"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}])
+            self.assertTrue(any("ServiceUnknown" in msg for msg in cm.output))
+
+        # Subprocess exception
+        with patch("subprocess.run", side_effect=subprocess.SubprocessError("DBus timeout")), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            err_wins = query_open_windows()
+            self.assertEqual(err_wins, [{"id": "desktop", "title": "Desktop / Workspace", "icon": "user-desktop"}])
+            self.assertTrue(any("DBus timeout" in msg for msg in cm.output))
+
+    def test_29_activate_window_by_id_warning_logging(self):
+        """Verify activate_window_by_id logs warning on non-zero exit code or exception."""
+        # Non-zero return code
+        with patch("subprocess.run") as mock_run, self.assertLogs("jimha", level="WARNING") as cm:
+            mock_res = MagicMock()
+            mock_res.returncode = 1
+            mock_res.stderr = "Invalid window handle"
+            mock_run.return_value = mock_res
+
+            res = activate_window_by_id("invalid_win")
+            self.assertFalse(res)
+            self.assertTrue(any("Invalid window handle" in msg for msg in cm.output))
+
+        # Subprocess exception
+        with patch("subprocess.run", side_effect=Exception("Connection lost")), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            res_ex = activate_window_by_id("invalid_win")
+            self.assertFalse(res_ex)
+            self.assertTrue(any("Connection lost" in msg for msg in cm.output))
+
+    def test_30_handover_window_activation_failure_logging(self):
+        """Verify _handover_to_desktop logs warning when window activation returns False."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        with patch("jimha.main.activate_window_by_id", return_value=False), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            game._handover_to_desktop(target_match_id="win_fail")
+            self.assertTrue(any("Handover window activation failed" in msg for msg in cm.output))
         game.force_close()
 
 
