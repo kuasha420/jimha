@@ -378,7 +378,7 @@ def synthesize_kwin_handover_script(target_match_id: Optional[str] = None) -> Tu
         "var wins = workspace.windowList();\n"
         "for (var i = 0; i < wins.length; i++) {\n"
         "    var w = wins[i];\n"
-        '    if (w.resourceClass === "jimha") {\n'
+        '    if (w.resourceClass === "jimha" || (w.caption && w.caption.indexOf("JimHa\'s Magical Key Smash") !== -1)) {\n'
         "        w.minimized = true;\n"
         "    }\n"
         "}\n"
@@ -854,28 +854,27 @@ class JimHaGame(QWidget):
         return False
 
     def changeEvent(self, event: QEvent) -> None:
-        """Aggressively reclaim focus and auto-relock fullscreen on window restore."""
+        """Aggressively reclaim focus in kiosk mode; yield cleanly during handover; relock upon reactivation."""
         if event.type() == QEvent.Type.ActivationChange:
-            if self.isActiveWindow() and not self.isMinimized():
-                self._handover_active = False
-                self.virtual_switcher_active = False
-            if not self._handover_active and not self.isMinimized() and not self.isActiveWindow() and not self._exit_authorized and not self.is_windowed:
-                self.activateWindow()
-                self.raise_()
-                self.setFocus()
-        elif event.type() == QEvent.Type.WindowStateChange:
-            if not self.isMinimized():
-                self._handover_active = False
-                self.virtual_switcher_active = False
-                if not self.is_windowed and not self._exit_authorized:
-                    self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-                    self.showFullScreen()
-                    self._safe_grab_keyboard()
+            if self.isActiveWindow():
+                if self._handover_active:
+                    logger.debug("JimHa reactivated by user after handover - restoring kiosk mode")
+                    self._handover_active = False
+                    self.virtual_switcher_active = False
+                    if not self.is_windowed and not self._exit_authorized:
+                        self.showFullScreen()
+                        self._safe_grab_keyboard()
+            else:
+                # Lost active focus
+                if not self._handover_active and not self.is_windowed and not self._exit_authorized:
+                    self.activateWindow()
+                    self.raise_()
+                    self.setFocus()
         super().changeEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Prevent losing keyboard focus to background tasks in fullscreen mode."""
-        if not self._handover_active and not self._exit_authorized and not self.is_windowed and not self.isMinimized():
+        if not self._handover_active and not self._exit_authorized and not self.is_windowed:
             self.setFocus()
         super().focusOutEvent(event)
 

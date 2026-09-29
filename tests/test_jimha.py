@@ -286,7 +286,8 @@ class TestJimHa(unittest.TestCase):
 
         mock_windows = [{"id": "win_quick_1", "title": "Quick App", "icon": "quick-app"}]
         with patch("jimha.main.query_open_windows", return_value=mock_windows), \
-             patch("jimha.main.execute_kwin_handover", return_value=True) as mock_ho:
+             patch("jimha.main.execute_kwin_handover", return_value=True) as mock_ho, \
+             patch.object(game, "isActiveWindow", return_value=False):
             # Send [UP, UP, DOWN, DOWN]
             for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
                 ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
@@ -413,6 +414,8 @@ class TestJimHa(unittest.TestCase):
         # Restore window (simulating user clicking taskbar or OS restore with activation)
         game.activateWindow()
         game.showNormal()
+        with patch.object(game, "isActiveWindow", return_value=True):
+            game.changeEvent(QEvent(QEvent.Type.ActivationChange))
         QApplication.processEvents()
         self.assertFalse(game.isMinimized(), "Window should no longer be minimized")
         self.assertTrue(game.isFullScreen(), "Window restore must auto-relock fullscreen kiosk mode")
@@ -595,8 +598,11 @@ class TestJimHa(unittest.TestCase):
             game._handover_to_desktop()
         self.assertTrue(game._handover_active)
 
-        # Restore window by un-minimizing
+        # Restore window by activating (user clicking JimHa on taskbar/switcher)
+        game.activateWindow()
         game.showNormal()
+        with patch.object(game, "isActiveWindow", return_value=True):
+            game.changeEvent(QEvent(QEvent.Type.ActivationChange))
         QApplication.processEvents()
 
         self.assertFalse(game._handover_active, "Handover flag must be cleared on window restore")
@@ -859,7 +865,8 @@ class TestJimHa(unittest.TestCase):
         with patch("jimha.main.query_open_windows", return_value=mock_windows), \
              patch("jimha.main.execute_kwin_handover", return_value=True) as mock_kwin_ho, \
              patch.object(game, "setWindowFlags") as mock_set_flags, \
-             patch.object(game, "lower") as mock_lower:
+             patch.object(game, "lower") as mock_lower, \
+             patch.object(game, "isActiveWindow", return_value=False):
 
             # Send [UP, UP, DOWN, DOWN]
             for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
@@ -960,6 +967,7 @@ class TestJimHa(unittest.TestCase):
         self.assertEqual(clean_target, uuid_str)
         self.assertIn(f"var target = {json.dumps(uuid_str)};", script)
         self.assertIn('w.resourceClass === "jimha"', script)
+        self.assertIn('w.caption.indexOf("JimHa\'s Magical Key Smash") !== -1', script)
         self.assertIn("w.minimized = true;", script)
         self.assertIn('var wid = (w.internalId || w.uuid || "").toString().toLowerCase();', script)
         self.assertIn("if (wid && wid.indexOf(target) !== -1)", script)
@@ -1220,6 +1228,33 @@ class TestJimHa(unittest.TestCase):
             game._handover_to_desktop(None)
             mock_kwin.assert_called_once_with(None)
             mock_fallback.assert_called_once_with("desktop")
+
+        game.force_close()
+
+    def test_34_handover_persists_across_wayland_window_state_changes(self):
+        """Verify that handover state is NOT reset by Wayland WindowStateChange events, only ActivationChange."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.showFullScreen()
+
+        with patch("jimha.main.execute_kwin_handover", return_value=True):
+            game._handover_to_desktop()
+        self.assertTrue(game._handover_active, "Handover flag must be active initially")
+
+        # Simulate Wayland compositor configure events emitting WindowStateChange with isMinimized() == False
+        with patch.object(game, "isMinimized", return_value=False):
+            ev_state = QEvent(QEvent.Type.WindowStateChange)
+            game.changeEvent(ev_state)
+            self.assertTrue(game._handover_active, "Handover flag must persist across WindowStateChange events")
+
+        # Then dispatch QEvent.Type.ActivationChange with isActiveWindow() == True
+        with patch.object(game, "isActiveWindow", return_value=True), \
+             patch.object(game, "showFullScreen") as mock_fs:
+            ev_act = QEvent(QEvent.Type.ActivationChange)
+            game.changeEvent(ev_act)
+            self.assertFalse(game._handover_active, "Handover flag must be cleared upon ActivationChange reactivation")
+            self.assertFalse(game.virtual_switcher_active)
+            mock_fs.assert_called_once()
 
         game.force_close()
 

@@ -34,6 +34,12 @@ def parse_args():
 
 
 def run():
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     args = parse_args()
 
     # Remote launch over Knot Mesh if requested
