@@ -49,6 +49,23 @@ PALETTE = [
 ]
 
 # Alphabet dictionary with emojis & companion words
+#
+# 💖 THE "JIM HEART" EASTER EGG LORE:
+# Born during JimHa's very first agentic pair programming session with her father (Arafat Zahan).
+# The initial challenge was spoken via Bangla voice dictation from a handheld Steam Deck,
+# instructing an autonomous AI agent over the Knot Mesh to project a game onto the Desktop PC:
+#   "ডিয়ার এজেন্ট, তুমি এমন একটা গেম বানাও যেটা আমার 16-17 বছর বয়সী মেয়ে জিম হার্ট এর জন্য..."
+#
+# The speech-to-text engine charmingly mistranslated "JimHa" (জিমহা) into "Jim Heart" (জিম হার্ট)
+# (and 16-17 months as years). Taking the prompt literally, the agent scaffolded `apps/jimheart`
+# with key 'J' set to ("💎", "Jim Heart!").
+#
+# Upon seeing the prototype, her father clarified:
+#   "jimha -----Not JimHa, but now that we have put it, let's keep it as a Easter egg.
+#    But my daughter's name is the previously mentioned JimHa."
+#
+# Key 'J' was rightfully crowned with ("👑", "JimHa! ✨"), while 'H' was immortalized as
+# ("💖", "Jim Heart (Easter Egg! 💖)") to preserve the serendipitous spark of their first session!
 ALPHABET_COMPANIONS = {
     "A": ("🍎", "Apple"),
     "B": ("🦋", "Butterfly"),
@@ -57,9 +74,9 @@ ALPHABET_COMPANIONS = {
     "E": ("🐘", "Elephant"),
     "F": ("🌸", "Flower"),
     "G": ("🎸", "Guitar"),
-    "H": ("💖", "Jim Heart (Easter Egg! 💖)"),
+    "H": ("💖", "Jim Heart (Easter Egg! 💖)"),  # The legendary voice-dictation spark!
     "I": ("🍦", "Ice Cream"),
-    "J": ("👑", "JimHa! ✨"),
+    "J": ("👑", "JimHa! ✨"),  # The queen herself!
     "K": ("🪁", "Kite"),
     "L": ("🦁", "Lion"),
     "M": ("🌙", "Moon"),
