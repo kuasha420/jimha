@@ -89,18 +89,26 @@ def main():
     img_space.save(str(assets_dir / "screenshot_4_supernova.png"))
     print("  -> Saved screenshot_4_supernova.png")
 
-    # 5. Exit Protection HUD (holding ESC)
-    esc_down = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
-    game.keyPressEvent(esc_down)
-    # Simulate holding for 1.8 seconds (progress ~ 60%)
-    game.esc_hold_progress = 0.62
-    game.esc_press_start_time = time.time() - 1.86
-    img_esc = render_game_frame(game, width, height)
-    img_esc.save(str(assets_dir / "screenshot_5_exit_hud.png"))
-    print("  -> Saved screenshot_5_exit_hud.png")
-
-    # Reset game for trailer recording
+    # 5. Exit Protection HUD (holding ESC on fresh welcome screen with bubbles)
     game.close()
+    hud_game = JimHaGame(enable_audio=False)
+    hud_game.resize(width, height)
+    hud_game.show()
+    for _ in range(20):
+        hud_game._on_tick()
+    hud_game._spawn_bubble(180, 490)
+    hud_game._spawn_bubble(1060, 470)
+    for _ in range(10):
+        hud_game._on_tick()
+
+    esc_down = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
+    hud_game.keyPressEvent(esc_down)
+    hud_game.esc_hold_progress = 0.58
+    hud_game.esc_press_start_time = time.time() - 1.74
+    img_esc = render_game_frame(hud_game, width, height)
+    img_esc.save(str(assets_dir / "screenshot_5_exit_hud.png"))
+    hud_game.close()
+    print("  -> Saved distinct screenshot_5_exit_hud.png")
 
     print("[2/3] Recording animated gameplay clip sequence...")
     rec_game = JimHaGame(enable_audio=False)
