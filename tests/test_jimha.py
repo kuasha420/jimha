@@ -3,6 +3,7 @@
 Automated unit tests for JimHa standalone game.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -32,6 +33,8 @@ from jimha.main import (
     ensure_kwin_shortcut_inhibition,
     query_open_windows,
     activate_window_by_id,
+    execute_kwin_handover,
+    synthesize_kwin_handover_script,
 )
 
 
@@ -283,7 +286,7 @@ class TestJimHa(unittest.TestCase):
 
         mock_windows = [{"id": "win_quick_1", "title": "Quick App", "icon": "quick-app"}]
         with patch("jimha.main.query_open_windows", return_value=mock_windows), \
-             patch("jimha.main.activate_window_by_id") as mock_act:
+             patch("jimha.main.execute_kwin_handover", return_value=True) as mock_ho:
             # Send [UP, UP, DOWN, DOWN]
             for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
                 ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
@@ -298,7 +301,7 @@ class TestJimHa(unittest.TestCase):
             QApplication.processEvents()
             self.assertTrue(game.isMinimized(), "Quick-Switch must minimize the window after 150ms delay")
             self.assertTrue(game._handover_active, "Handover flag must be set upon minimization")
-            mock_act.assert_called_once_with("win_quick_1")
+            mock_ho.assert_called_once_with("win_quick_1")
 
         game.force_close()
 
@@ -402,7 +405,8 @@ class TestJimHa(unittest.TestCase):
         self.assertTrue(game.isFullScreen(), "Window should initially be in fullscreen mode")
 
         # Minimize the window (simulating desktop handover)
-        game._handover_to_desktop()
+        with patch("jimha.main.execute_kwin_handover", return_value=True):
+            game._handover_to_desktop()
         self.assertTrue(game.isMinimized(), "Window must be minimized after handover")
         self.assertTrue(game._handover_active, "Handover flag must be active while minimized")
 
@@ -552,7 +556,8 @@ class TestJimHa(unittest.TestCase):
         game.showFullScreen()
 
         # Engage desktop handover
-        game._handover_to_desktop()
+        with patch("jimha.main.execute_kwin_handover", return_value=True):
+            game._handover_to_desktop()
         self.assertTrue(game._handover_active)
         self.assertTrue(game.isMinimized())
 
@@ -586,7 +591,8 @@ class TestJimHa(unittest.TestCase):
         game.resize(800, 600)
         game.showFullScreen()
 
-        game._handover_to_desktop()
+        with patch("jimha.main.execute_kwin_handover", return_value=True):
+            game._handover_to_desktop()
         self.assertTrue(game._handover_active)
 
         # Restore window by un-minimizing
@@ -831,7 +837,7 @@ class TestJimHa(unittest.TestCase):
             self.assertEqual(game.virtual_switcher_index, 1)
 
             # Enter -> commits handover to win2
-            with patch("jimha.main.activate_window_by_id") as mock_act:
+            with patch("jimha.main.execute_kwin_handover", return_value=True) as mock_act:
                 ev_enter = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
                 game.keyPressEvent(ev_enter)
 
@@ -843,7 +849,7 @@ class TestJimHa(unittest.TestCase):
         game.force_close()
 
     def test_26_quick_switch_definite_handover(self):
-        """Verify Quick Switch queries windows, calls _handover_to_desktop with target ID, and strips stays-on-top."""
+        """Verify Quick Switch queries windows, calls _handover_to_desktop with target ID, and executes kwin handover without stripping stays-on-top."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
         game.resize(800, 600)
         game.show()
@@ -851,7 +857,9 @@ class TestJimHa(unittest.TestCase):
         mock_windows = [{"id": "target_win_99", "title": "Editor", "icon": "kate"}]
 
         with patch("jimha.main.query_open_windows", return_value=mock_windows), \
-             patch("jimha.main.activate_window_by_id") as mock_act:
+             patch("jimha.main.execute_kwin_handover", return_value=True) as mock_kwin_ho, \
+             patch.object(game, "setWindowFlags") as mock_set_flags, \
+             patch.object(game, "lower") as mock_lower:
 
             # Send [UP, UP, DOWN, DOWN]
             for key in [Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down]:
@@ -868,12 +876,10 @@ class TestJimHa(unittest.TestCase):
 
             self.assertTrue(game.isMinimized(), "Quick Switch must minimize JimHa")
             self.assertTrue(game._handover_active, "Handover flag must be set")
-            # Verify WindowStaysOnTopHint stripped
-            self.assertFalse(
-                bool(game.windowFlags() & Qt.WindowType.WindowStaysOnTopHint),
-                "WindowStaysOnTopHint must be stripped on handover",
-            )
-            mock_act.assert_called_once_with("target_win_99")
+            # Verify setWindowFlags and lower were NOT called
+            mock_set_flags.assert_not_called()
+            mock_lower.assert_not_called()
+            mock_kwin_ho.assert_called_once_with("target_win_99")
 
         game.force_close()
 
@@ -938,13 +944,287 @@ class TestJimHa(unittest.TestCase):
     def test_30_handover_window_activation_failure_logging(self):
         """Verify _handover_to_desktop logs warning when window activation returns False."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
-        with patch("jimha.main.activate_window_by_id", return_value=False), \
+        with patch("jimha.main.execute_kwin_handover", return_value=False), \
+             patch("jimha.main.activate_window_by_id", return_value=False), \
              self.assertLogs("jimha", level="WARNING") as cm:
             game._handover_to_desktop(target_match_id="win_fail")
             self.assertTrue(any("Handover window activation failed" in msg for msg in cm.output))
         game.force_close()
 
+    def test_31_execute_kwin_handover_script_generation(self):
+        """Verify JS generation and UUID normalization for UUIDs, 'desktop', and None."""
+        # 1. UUID target normalization
+        uuid_str = "4b9643ce-9e1a-4be5-a20d-1b155b7bbe80"
+        target_uuid = f"0_{{{uuid_str.upper()}}}"
+        clean_target, script = synthesize_kwin_handover_script(target_uuid)
+        self.assertEqual(clean_target, uuid_str)
+        self.assertIn(f"var target = {json.dumps(uuid_str)};", script)
+        self.assertIn('w.resourceClass === "jimha"', script)
+        self.assertIn("w.minimized = true;", script)
+        self.assertIn('var wid = (w.internalId || w.uuid || "").toString().toLowerCase();', script)
+        self.assertIn("if (wid && wid.indexOf(target) !== -1)", script)
+        self.assertIn("workspace.activeWindow = w;", script)
+        self.assertIn("workspace.raiseWindow(w);", script)
+
+        # 2. 'desktop' target
+        clean_desktop, script_desk = synthesize_kwin_handover_script("desktop")
+        self.assertEqual(clean_desktop, "desktop")
+        self.assertIn(f"var target = {json.dumps('desktop')};", script_desk)
+        self.assertIn("workspace.slotToggleShowDesktop();", script_desk)
+
+        # 3. None target (stacking order fallback)
+        clean_none, script_none = synthesize_kwin_handover_script(None)
+        self.assertEqual(clean_none, "")
+        self.assertIn(f"var target = {json.dumps('')};", script_none)
+        self.assertIn("var stack = workspace.stackingOrder;", script_none)
+        self.assertIn('sw.resourceClass !== "jimha" && !sw.minimized && sw.normalWindow', script_none)
+
+        # 4. Trimming for non-UUID arbitrary string
+        clean_custom, script_custom = synthesize_kwin_handover_script("   alacritty_window   ")
+        self.assertEqual(clean_custom, "alacritty_window")
+        self.assertIn(f"var target = {json.dumps('alacritty_window')};", script_custom)
+
+        # 5. Escaping of quotes / special characters via json.dumps
+        clean_escape, script_escape = synthesize_kwin_handover_script('window"with"quotes')
+        self.assertEqual(clean_escape, 'window"with"quotes')
+        self.assertIn(f"var target = {json.dumps('window\"with\"quotes')};", script_escape)
+
+    def test_32_execute_kwin_handover_dbus_execution(self):
+        """Verify execute_kwin_handover loads, runs, and unloads transient script via D-Bus."""
+        mock_calls = []
+        captured_temp_paths = []
+
+        def fake_run(cmd, *args, **kwargs):
+            mock_calls.append(cmd)
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                path_idx = [i for i, arg in enumerate(cmd) if "Scripting.loadScript" in str(arg)][0] + 1
+                captured_temp_paths.append(cmd[path_idx])
+                mock_res.stdout = "108\n"
+            else:
+                mock_res.stdout = ""
+            mock_res.stderr = ""
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run):
+            res = execute_kwin_handover("0_{11223344-5566-7788-99aa-bbccddeeff00}")
+            self.assertTrue(res)
+
+        # Verify exact sequence: unloadScript -> loadScript -> run -> unloadScript
+        self.assertEqual(len(mock_calls), 4)
+
+        # 1. Best-effort unload prior
+        self.assertEqual(
+            mock_calls[0],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "jimha_handover"]
+        )
+
+        # 2. Load script
+        self.assertEqual(
+            mock_calls[1][:4],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript"]
+        )
+        self.assertEqual(mock_calls[1][5], "jimha_handover")
+        temp_file_used = mock_calls[1][4]
+        self.assertTrue(temp_file_used.endswith(".js"))
+
+        # 3. Run script using extracted id
+        self.assertEqual(
+            mock_calls[2],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting/Script108", "org.kde.kwin.Script.run"]
+        )
+
+        # 4. Unload script
+        self.assertEqual(
+            mock_calls[3],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "jimha_handover"]
+        )
+
+        # Verify temp file was cleaned up by finally: block
+        self.assertFalse(Path(temp_file_used).exists(), "Temporary JS script must be unlinked after execution")
+
+    def test_33_execute_kwin_handover_failure_fallback(self):
+        """Verify graceful False return and cleanup when D-Bus fails, plus fallback in _handover_to_desktop."""
+        # 1. Missing qdbus binary returns False
+        with patch("shutil.which", return_value=None):
+            self.assertFalse(execute_kwin_handover("desktop"))
+
+        # 2. loadScript non-zero exit code returns False and cleans up temp file
+        captured_paths = []
+        def fake_run_fail_load(cmd, *args, **kwargs):
+            mock_res = MagicMock()
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                path_idx = [i for i, arg in enumerate(cmd) if "Scripting.loadScript" in str(arg)][0] + 1
+                captured_paths.append(cmd[path_idx])
+                mock_res.returncode = 1
+                mock_res.stderr = "KWin scripting error: syntax error"
+            else:
+                mock_res.returncode = 0
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_fail_load), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(execute_kwin_handover("desktop"))
+            self.assertTrue(any("Failed to load KWin handover script" in msg for msg in cm.output))
+        self.assertEqual(len(captured_paths), 1)
+        self.assertFalse(Path(captured_paths[0]).exists())
+
+        # 3. Invalid / negative script ID returns False, unloads script in finally:, and cleans up temp file
+        captured_paths.clear()
+        run_cmds_inv = []
+        def fake_run_invalid_id(cmd, *args, **kwargs):
+            run_cmds_inv.append(cmd)
+            mock_res = MagicMock()
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                path_idx = [i for i, arg in enumerate(cmd) if "Scripting.loadScript" in str(arg)][0] + 1
+                captured_paths.append(cmd[path_idx])
+                mock_res.returncode = 0
+                mock_res.stdout = "-1"
+            else:
+                mock_res.returncode = 0
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_invalid_id), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(execute_kwin_handover("desktop"))
+            self.assertTrue(any("Invalid script id returned" in msg for msg in cm.output))
+        self.assertEqual(len(captured_paths), 1)
+        self.assertFalse(Path(captured_paths[0]).exists())
+        self.assertEqual(
+            run_cmds_inv[-1],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "jimha_handover"]
+        )
+
+        # 4. runScript non-zero exit code returns False, unloads script in finally:, and cleans up temp file
+        captured_paths.clear()
+        run_cmds = []
+        def fake_run_fail_run(cmd, *args, **kwargs):
+            run_cmds.append(cmd)
+            mock_res = MagicMock()
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                path_idx = [i for i, arg in enumerate(cmd) if "Scripting.loadScript" in str(arg)][0] + 1
+                captured_paths.append(cmd[path_idx])
+                mock_res.returncode = 0
+                mock_res.stdout = "7"
+            elif any("Script.run" in str(arg) for arg in cmd):
+                mock_res.returncode = 1
+                mock_res.stderr = "Script crashed"
+            else:
+                mock_res.returncode = 0
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_fail_run), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(execute_kwin_handover("desktop"))
+            self.assertTrue(any("Failed to run KWin handover script" in msg for msg in cm.output))
+        self.assertEqual(len(captured_paths), 1)
+        self.assertFalse(Path(captured_paths[0]).exists())
+        self.assertEqual(
+            run_cmds[-1],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "jimha_handover"]
+        )
+
+        # 5. runScript raises TimeoutExpired: verify unloadScript is still invoked in finally:
+        captured_paths.clear()
+        run_cmds_timeout = []
+        def fake_run_timeout(cmd, *args, **kwargs):
+            run_cmds_timeout.append(cmd)
+            mock_res = MagicMock()
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                path_idx = [i for i, arg in enumerate(cmd) if "Scripting.loadScript" in str(arg)][0] + 1
+                captured_paths.append(cmd[path_idx])
+                mock_res.returncode = 0
+                mock_res.stdout = "8"
+            elif any("Script.run" in str(arg) for arg in cmd):
+                raise subprocess.TimeoutExpired(cmd=cmd, timeout=2.0)
+            else:
+                mock_res.returncode = 0
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_timeout), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(execute_kwin_handover("desktop"))
+            self.assertTrue(any("execute_kwin_handover exception" in msg for msg in cm.output))
+        self.assertEqual(len(captured_paths), 1)
+        self.assertFalse(Path(captured_paths[0]).exists())
+        self.assertEqual(
+            run_cmds_timeout[-1],
+            ["/usr/bin/qdbus", "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "jimha_handover"]
+        )
+
+        # 6. unloadScript exception in finally: logs warning transparently
+        run_cmds_unload = []
+        def fake_run_unload_exc(cmd, *args, **kwargs):
+            if any("Scripting.unloadScript" in str(arg) for arg in cmd) and len(run_cmds_unload) > 0:
+                raise subprocess.SubprocessError("DBus transport broken on unload")
+            run_cmds_unload.append(cmd)
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                mock_res.stdout = "9"
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_unload_exc), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            res = execute_kwin_handover("desktop")
+            self.assertTrue(res)
+            self.assertTrue(any("Failed to unload KWin handover script" in msg for msg in cm.output))
+
+        # 7. Path.unlink raises OSError in finally: logs warning transparently
+        def fake_run_ok(cmd, *args, **kwargs):
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                mock_res.stdout = "10"
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_ok), \
+             patch.object(Path, "unlink", side_effect=OSError("Disk failure")), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            res = execute_kwin_handover("desktop")
+            self.assertTrue(res)
+            self.assertTrue(any("Failed to unlink temporary KWin script" in msg for msg in cm.output))
+
+        # 8. Subprocess exception during loadScript returns False and cleans up temp file
+        def fake_run_exception(cmd, *args, **kwargs):
+            if any("Scripting.loadScript" in str(arg) for arg in cmd):
+                raise subprocess.SubprocessError("DBus connection failed")
+            mock_res = MagicMock()
+            mock_res.returncode = 0
+            return mock_res
+
+        with patch("shutil.which", return_value="/usr/bin/qdbus"), \
+             patch("subprocess.run", side_effect=fake_run_exception), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(execute_kwin_handover("desktop"))
+            self.assertTrue(any("execute_kwin_handover exception" in msg for msg in cm.output))
+
+        # 9. Fallback in _handover_to_desktop when execute_kwin_handover returns False
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        with patch("jimha.main.execute_kwin_handover", return_value=False) as mock_kwin, \
+             patch("jimha.main.activate_window_by_id", return_value=True) as mock_fallback:
+            game._handover_to_desktop("win_fallback_id")
+            mock_kwin.assert_called_once_with("win_fallback_id")
+            mock_fallback.assert_called_once_with("win_fallback_id")
+
+        with patch("jimha.main.execute_kwin_handover", return_value=False) as mock_kwin, \
+             patch("jimha.main.activate_window_by_id", return_value=True) as mock_fallback:
+            game._handover_to_desktop(None)
+            mock_kwin.assert_called_once_with(None)
+            mock_fallback.assert_called_once_with("desktop")
+
+        game.force_close()
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

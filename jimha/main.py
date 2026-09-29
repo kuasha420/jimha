@@ -6,6 +6,7 @@ Keys pop up in giant, vibrant animations with companion words, emojis, particle 
 Exit protection: Press and hold ESC continuously for 3.0 seconds to quit.
 """
 
+import json
 import logging
 import math
 import random
@@ -13,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -352,6 +354,162 @@ def activate_window_by_id(match_id: str) -> bool:
         return False
 
 
+def synthesize_kwin_handover_script(target_match_id: Optional[str] = None) -> Tuple[str, str]:
+    """
+    Synthesize transient KWin script for authoritative window handover.
+
+    Returns tuple of (clean_target, js_script_content).
+    """
+    if target_match_id == "desktop":
+        clean_target = "desktop"
+    elif target_match_id:
+        uuid_match = re.search(
+            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            target_match_id,
+        )
+        if uuid_match:
+            clean_target = uuid_match.group(0).lower()
+        else:
+            clean_target = target_match_id.strip()
+    else:
+        clean_target = ""
+
+    script = (
+        "var wins = workspace.windowList();\n"
+        "for (var i = 0; i < wins.length; i++) {\n"
+        "    var w = wins[i];\n"
+        '    if (w.resourceClass === "jimha") {\n'
+        "        w.minimized = true;\n"
+        "    }\n"
+        "}\n"
+        f"var target = {json.dumps(clean_target)};\n"
+        'if (target === "desktop") {\n'
+        "    workspace.slotToggleShowDesktop();\n"
+        "} else if (target) {\n"
+        "    for (var i = 0; i < wins.length; i++) {\n"
+        "        var w = wins[i];\n"
+        '        var wid = (w.internalId || w.uuid || "").toString().toLowerCase();\n'
+        "        if (wid && wid.indexOf(target) !== -1) {\n"
+        "            w.minimized = false;\n"
+        "            workspace.activeWindow = w;\n"
+        "            workspace.raiseWindow(w);\n"
+        "            break;\n"
+        "        }\n"
+        "    }\n"
+        "} else {\n"
+        "    var stack = workspace.stackingOrder;\n"
+        "    for (var i = stack.length - 1; i >= 0; i--) {\n"
+        "        var sw = stack[i];\n"
+        '        if (sw.resourceClass !== "jimha" && !sw.minimized && sw.normalWindow) {\n'
+        "            workspace.activeWindow = sw;\n"
+        "            workspace.raiseWindow(sw);\n"
+        "            break;\n"
+        "        }\n"
+        "    }\n"
+        "}\n"
+    )
+    return clean_target, script
+
+
+def execute_kwin_handover(target_match_id: Optional[str] = None) -> bool:
+    """
+    Execute authoritative KWin window handover via transient KWin D-Bus script.
+
+    Minimizes JimHa and activates target window (or desktop, or top window in stacking order).
+    Returns True on success, False on failure.
+    """
+    qdbus_bin = shutil.which("qdbus") or shutil.which("qdbus6")
+    if not qdbus_bin:
+        logger.debug("execute_kwin_handover: qdbus or qdbus6 binary not found")
+        return False
+
+    clean_target, script_content = synthesize_kwin_handover_script(target_match_id)
+    plugin_name = "jimha_handover"
+    temp_path = None
+    script_loaded = False
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as tf:
+            tf.write(script_content)
+            temp_path = tf.name
+
+        # Best effort unload prior instance
+        subprocess.run(
+            [qdbus_bin, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", plugin_name],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+
+        # Load script
+        res_load = subprocess.run(
+            [qdbus_bin, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", temp_path, plugin_name],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+        if res_load.returncode != 0:
+            logger.warning(
+                "Failed to load KWin handover script (exit %d): %s",
+                res_load.returncode,
+                res_load.stderr.strip() if res_load.stderr else "",
+            )
+            return False
+
+        script_loaded = True
+
+        # Extract script id number from stdout
+        stdout_str = res_load.stdout.strip() if res_load.stdout else ""
+        id_match = re.search(r"-?\d+", stdout_str)
+        if not id_match or int(id_match.group(0)) < 0:
+            logger.warning("Invalid script id returned from loadScript: %s", stdout_str)
+            return False
+        script_id = id_match.group(0)
+
+        # Run script
+        res_run = subprocess.run(
+            [qdbus_bin, "org.kde.KWin", f"/Scripting/Script{script_id}", "org.kde.kwin.Script.run"],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+            check=False,
+        )
+
+        if res_run.returncode != 0:
+            logger.warning(
+                "Failed to run KWin handover script (exit %d): %s",
+                res_run.returncode,
+                res_run.stderr.strip() if res_run.stderr else "",
+            )
+            return False
+
+        logger.debug("execute_kwin_handover(%s) succeeded with script id %s", clean_target, script_id)
+        return True
+
+    except Exception as err:
+        logger.warning("execute_kwin_handover exception: %s", err)
+        return False
+    finally:
+        if script_loaded:
+            try:
+                subprocess.run(
+                    [qdbus_bin, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", plugin_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                    check=False,
+                )
+            except Exception as unload_err:
+                logger.warning("Failed to unload KWin handover script: %s", unload_err)
+        if temp_path:
+            try:
+                Path(temp_path).unlink(missing_ok=True)
+            except OSError as unlink_err:
+                logger.warning("Failed to unlink temporary KWin script %s: %s", temp_path, unlink_err)
+
+
 class JimHaGame(QWidget):
     """Fullscreen interactive visual playground with long-hold ESC exit protection."""
 
@@ -641,7 +799,7 @@ class JimHaGame(QWidget):
             self._safe_grab_keyboard()
 
     def _handover_to_desktop(self, target_match_id: Optional[str] = None) -> None:
-        """Release exclusive keyboard grab, strip stays-on-top, and minimize JimHa to hand over control to desktop."""
+        """Release exclusive keyboard grab, minimize JimHa, and hand over control authoritatively."""
         if hasattr(self, "_quick_switch_timer"):
             self._quick_switch_timer.stop()
         if self._exit_authorized:
@@ -654,12 +812,10 @@ class JimHaGame(QWidget):
         self.rekka_nav_active = False
         self.virtual_switcher_active = False
         self._safe_release_keyboard()
-        if not self.is_windowed:
-            self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)
-            self.lower()
         self.showMinimized()
-        if target_match_id and not activate_window_by_id(target_match_id):
-            logger.warning("Handover window activation failed for id: %s", target_match_id)
+        if not execute_kwin_handover(target_match_id):
+            if not activate_window_by_id(target_match_id or "desktop"):
+                logger.warning("Handover window activation failed for id: %s", target_match_id)
 
     def _trigger_quick_switch_handover(self, target_id: Optional[str]) -> None:
         """Trigger visual banner and schedule deferred handover via managed timer."""
