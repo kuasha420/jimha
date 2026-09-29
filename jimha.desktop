@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=JimHa's Key Smash
+GenericName=Interactive Key Smash Game
+Comment=Toddler-safe fullscreen key smash wonderland for JimHa
+Exec=jimha
+Icon=jimha
+Terminal=false
+Categories=Game;KidsGame;
+Keywords=game;kids;toddler;keys;smash;jimha;heart;
+StartupNotify=true
+StartupWMClass=jimha

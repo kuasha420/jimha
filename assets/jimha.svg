@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D1152"/>
+      <stop offset="50%" stop-color="#16082F"/>
+      <stop offset="100%" stop-color="#0A0B1E"/>
+    </linearGradient>
+
+    <!-- Glowing Heart Gradient -->
+    <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4081"/>
+      <stop offset="100%" stop-color="#D500F9"/>
+    </linearGradient>
+
+    <!-- Crown Gold Gradient -->
+    <linearGradient id="crownGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF176"/>
+      <stop offset="50%" stop-color="#FFD600"/>
+      <stop offset="100%" stop-color="#FF9100"/>
+    </linearGradient>
+
+    <!-- Radial Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" fill="url(#bgGrad)"/>
+  <rect x="20" y="20" width="472" height="472" rx="104" ry="104" fill="none" stroke="#00E5FF" stroke-width="4" stroke-opacity="0.4"/>
+
+  <!-- Background Sparkles -->
+  <circle cx="90" cy="110" r="4" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="420" cy="130" r="5" fill="#FFD600" opacity="0.9"/>
+  <circle cx="120" cy="390" r="6" fill="#00E676" opacity="0.7"/>
+  <circle cx="400" cy="380" r="4" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="256" cy="70" r="3" fill="#00E5FF" opacity="0.6"/>
+
+  <!-- Halo behind Heart -->
+  <circle cx="256" cy="290" r="140" fill="#FF4081" opacity="0.25" filter="url(#glow)"/>
+
+  <!-- Heart Base Shape -->
+  <path d="M 256,430
+           C 256,430 110,335 110,240
+           A 65,65 0 0,1 230,200
+           L 256,230
+           L 282,200
+           A 65,65 0 0,1 402,240
+           C 402,335 256,430 256,430 Z"
+        fill="url(#heartGrad)" filter="url(#subtleGlow)"/>
+
+  <!-- Heart Specular Highlight -->
+  <path d="M 140,215 A 40,40 0 0,1 190,195 C 160,205 135,230 135,255 C 135,235 136,220 140,215 Z" fill="#FFFFFF" opacity="0.45"/>
+
+  <!-- Royal Crown -->
+  <g transform="translate(0, -20)">
+    <!-- Crown Glow -->
+    <path d="M 160,200 L 140,110 L 210,150 L 256,80 L 302,150 L 372,110 L 352,200 Z"
+          fill="none" stroke="#FFD600" stroke-width="18" opacity="0.3" filter="url(#glow)"/>
+
+    <!-- Crown Main Body -->
+    <path d="M 160,200 L 140,110 L 210,150 L 256,80 L 302,150 L 372,110 L 352,200 Z"
+          fill="url(#crownGrad)" stroke="#FFA000" stroke-width="4" stroke-linejoin="round"/>
+
+    <!-- Crown Base Band -->
+    <rect x="156" y="196" width="200" height="24" rx="8" ry="8" fill="#FFB300" stroke="#FF8F00" stroke-width="2"/>
+
+    <!-- Crown Jewels on Tips -->
+    <circle cx="140" cy="110" r="12" fill="#00E5FF" stroke="#FFFFFF" stroke-width="3"/>
+    <circle cx="256" cy="80" r="16" fill="#FF1744" stroke="#FFFFFF" stroke-width="4" filter="url(#subtleGlow)"/>
+    <circle cx="372" cy="110" r="12" fill="#00E676" stroke="#FFFFFF" stroke-width="3"/>
+
+    <!-- Jewels on Band -->
+    <circle cx="200" cy="208" r="6" fill="#D500F9"/>
+    <circle cx="256" cy="208" r="8" fill="#00E5FF"/>
+    <circle cx="312" cy="208" r="6" fill="#D500F9"/>
+  </g>
+
+  <!-- Big Magic Star in Bottom Right -->
+  <g transform="translate(380, 270) scale(0.65)">
+    <polygon points="50,0 63,38 100,38 69,59 82,98 50,75 18,98 31,59 0,38 37,38" fill="#FFEB3B" filter="url(#subtleGlow)"/>
+  </g>
+
+  <!-- Little Magic Star in Top Left -->
+  <g transform="translate(70, 160) scale(0.45)">
+    <polygon points="50,0 63,38 100,38 69,59 82,98 50,75 18,98 31,59 0,38 37,38" fill="#00E5FF" filter="url(#subtleGlow)"/>
+  </g>
+</svg>

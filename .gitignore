@@ -1,0 +1,21 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Arch Linux packaging artifacts
+src/
+pkg/
+*.pkg.tar.*
+*.tar.gz
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*~
