@@ -1,6 +1,6 @@
 # Maintainer: Arafat Zahan <kuasha420@gmail.com>
 pkgname=jimha
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="A toddler-safe fullscreen interactive key smash wonderland for JimHa"
 arch=('any')

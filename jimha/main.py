@@ -252,6 +252,8 @@ class JimHaGame(QWidget):
             self.esc_hold_progress = min(1.0, elapsed / self.esc_hold_required_sec)
             if self.esc_hold_progress >= 1.0:
                 self.timer.stop()
+                if self.sound_bank:
+                    self.sound_bank.close()
                 QApplication.quit()
                 return
         else:
@@ -281,6 +283,12 @@ class JimHaGame(QWidget):
         self.bubbles = alive_bubbles
 
         self.update()
+
+    def closeEvent(self, event) -> None:
+        """Clean up timers and audio child processes on window close."""
+        if hasattr(self, "sound_bank") and self.sound_bank:
+            self.sound_bank.close()
+        super().closeEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key presses with toddler-safe ESC hold protection."""

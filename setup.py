@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="jimha",
-    version="1.0.0",
+    version="1.0.1",
     description="JimHa's Magical Key Smash Game - Fullscreen kid-friendly interactive wonderland",
     long_description=open("README.md", encoding="utf-8").read() if open("README.md", encoding="utf-8") else "",
     long_description_content_type="text/markdown",

@@ -117,6 +117,19 @@ class TestJimHa(unittest.TestCase):
 
         self.assertGreaterEqual(game.esc_hold_progress, 1.0, "ESC hold progress should reach 1.0")
 
+    def test_07_sound_bank_play_key_cycling(self):
+        """Verify SoundBank note index cycling and robust player dispatch."""
+        cache_dir = Path("/tmp/test_jimha_sounds_cycle")
+        bank = SoundBank(cache_dir=cache_dir)
+        init_idx = bank._note_index
+        bank.play_key("A")
+        self.assertNotEqual(bank._note_index, init_idx, "Note index must advance on play_key")
+        bank.play_key("SPACE")
+        self.assertTrue(len(bank.sound_paths) > 0)
+        bank.close()
+
 
 if __name__ == "__main__":
+
     unittest.main()
+
