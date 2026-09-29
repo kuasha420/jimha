@@ -93,8 +93,8 @@ def main():
     print("  -> Saved screenshot_4_supernova.png")
 
     # 5. Exit Protection HUD (holding ESC on fresh welcome screen with bubbles)
-    game.close()
-    hud_game = JimHaGame(enable_audio=False)
+    game.force_close()
+    hud_game = JimHaGame(enable_audio=False, is_windowed=True)
     hud_game.resize(width, height)
     hud_game.show()
     for _ in range(20):
@@ -110,7 +110,7 @@ def main():
     hud_game.esc_press_start_time = time.time() - 1.74
     img_esc = render_game_frame(hud_game, width, height)
     img_esc.save(str(assets_dir / "screenshot_5_exit_hud.png"))
-    hud_game.close()
+    hud_game.force_close()
     print("  -> Saved distinct screenshot_5_exit_hud.png")
 
     print("[2/3] Recording animated gameplay clip sequence with synchronized sound...")

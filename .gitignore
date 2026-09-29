@@ -19,3 +19,6 @@ pkg/
 .idea/
 *.swp
 *~
+
+# Agent artifacts bridge
+.agents/

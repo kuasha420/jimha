@@ -17,7 +17,7 @@ build() {
   else
     cd "$startdir"
   fi
-  python setup.py build
+  /usr/bin/python setup.py build
 }
 
 package() {
@@ -26,7 +26,7 @@ package() {
   else
     cd "$startdir"
   fi
-  python setup.py install --root="$pkgdir" --optimize=1 --skip-build
+  /usr/bin/python setup.py install --root="$pkgdir" --optimize=1 --skip-build
 
   install -Dm644 jimha.desktop "$pkgdir/usr/share/applications/jimha.desktop"
   install -Dm644 assets/jimha.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/jimha.svg"

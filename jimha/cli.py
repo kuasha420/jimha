@@ -62,7 +62,7 @@ def run():
         os.environ["QT_QPA_PLATFORM"] = "wayland;xcb"
 
     app = QApplication(sys.argv)
-    game = JimHaGame(enable_audio=not args.no_audio)
+    game = JimHaGame(enable_audio=not args.no_audio, is_windowed=args.windowed)
 
     if args.windowed:
         game.resize(1280, 720)
