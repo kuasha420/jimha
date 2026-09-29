@@ -6,13 +6,18 @@ Keys pop up in giant, vibrant animations with companion words, emojis, particle 
 Exit protection: Press and hold ESC continuously for 3.0 seconds to quit.
 """
 
+import logging
 import math
 import random
+import shutil
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger("jimha")
 
 from PyQt6.QtCore import QEvent, QPointF, QRectF, Qt, QTimer
 from PyQt6.QtGui import (
@@ -38,6 +43,21 @@ try:
     from jimha.sound_synth import SoundBank
 except ImportError:
     from sound_synth import SoundBank
+
+# PyQt6 SIP binding compatibility:
+# In Qt C++ and PySide6, QTimer.singleShot accepts an optional receiver context object
+# (QTimer.singleShot(msec, context, slot)) to bind timer lifecycle to receiver.
+# PyQt6 omitted this overload from its SIP wrapper. We adapt it transparently.
+_orig_single_shot = QTimer.singleShot
+
+
+def _compat_single_shot(msec, *args):
+    if len(args) == 2 and not isinstance(args[0], Qt.TimerType):
+        return _orig_single_shot(msec, args[1])
+    return _orig_single_shot(msec, *args)
+
+
+QTimer.singleShot = staticmethod(_compat_single_shot)
 
 # High-contrast, joyful pastel & neon palette
 PALETTE = [
@@ -171,6 +191,74 @@ QUICK_SWITCH_SEQUENCE = ["UP", "UP", "DOWN", "DOWN"]
 NAVIGATOR_SEQUENCE = ["UP", "UP"]
 
 
+def ensure_kwin_shortcut_inhibition() -> bool:
+    """
+    Ensure KWin disables global shortcuts (Alt+Tab, Alt+F4, Meta) for JimHa window.
+
+    Checks if running under KDE Plasma by verifying the presence of kreadconfig6 and
+    kwriteconfig6. If jimha_lockdown is not registered in kwinrulesrc, adds the rule
+    with disableglobalshortcuts=true (forced) and reconfigures KWin via DBus.
+
+    Returns True if successfully verified or configured, False otherwise.
+    All subprocess and OS errors are caught and logged transparently to ensure JimHa
+    gracefully runs on non-KDE environments or headless test setups.
+    """
+    try:
+        kread_bin = shutil.which("kreadconfig6")
+        kwrite_bin = shutil.which("kwriteconfig6")
+        if not kread_bin or not kwrite_bin:
+            return False
+
+        # Read existing rules list from General group in kwinrulesrc
+        res = subprocess.run(
+            [kread_bin, "--file", "kwinrulesrc", "--group", "General", "--key", "rules"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        current_rules = res.stdout.strip() if res.returncode == 0 else ""
+        rules_list = [r.strip() for r in current_rules.split(",") if r.strip()]
+
+        if "jimha_lockdown" not in rules_list:
+            rules_list.append("jimha_lockdown")
+            new_rules = ",".join(rules_list)
+            new_count = str(len(rules_list))
+
+            subprocess.run(
+                [kwrite_bin, "--file", "kwinrulesrc", "--group", "General", "--key", "rules", new_rules],
+                check=True,
+            )
+            subprocess.run(
+                [kwrite_bin, "--file", "kwinrulesrc", "--group", "General", "--key", "count", new_count],
+                check=True,
+            )
+
+            # Rule properties for jimha_lockdown
+            rule_props = [
+                ("description", "JimHa Toddler Game Lockdown"),
+                ("wmclass", "jimha"),
+                ("wmclassmatch", "1"),
+                ("types", "1"),
+                ("disableglobalshortcuts", "true"),
+                ("disableglobalshortcutsrule", "2"),
+            ]
+            for key, val in rule_props:
+                subprocess.run(
+                    [kwrite_bin, "--file", "kwinrulesrc", "--group", "jimha_lockdown", "--key", key, val],
+                    check=True,
+                )
+
+            # Notify KWin to reload rules via DBus
+            qdbus_bin = shutil.which("qdbus") or shutil.which("qdbus6")
+            if qdbus_bin:
+                subprocess.run([qdbus_bin, "org.kde.KWin", "/KWin", "reconfigure"], check=True)
+
+        return True
+    except (subprocess.SubprocessError, FileNotFoundError, Exception) as err:
+        logger.warning("KWin shortcut inhibition configuration failed: %s", err)
+        return False
+
+
 class JimHaGame(QWidget):
     """Fullscreen interactive visual playground with long-hold ESC exit protection."""
 
@@ -179,6 +267,10 @@ class JimHaGame(QWidget):
         self.setWindowTitle("JimHa's Magical Key Smash Game")
         self.is_windowed = is_windowed
         self._exit_authorized = False
+        self._handover_active: bool = False
+
+        # Ensure KWin shortcut inhibition rule under KDE Plasma Wayland
+        ensure_kwin_shortcut_inhibition()
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
@@ -238,7 +330,7 @@ class JimHaGame(QWidget):
         self.rekka_buffer = RekkaBuffer(decay_timeout=0.8)
         self.rekka_nav_active = False
         self.rekka_nav_last_action_time = 0.0
-        self.rekka_nav_idle_timeout = 1.5
+        self.rekka_nav_idle_timeout = 5.0
         self.rekka_nav_index = 0
 
         # Frame timer (adaptive 60/30 FPS)
@@ -266,16 +358,17 @@ class JimHaGame(QWidget):
         center_y = self.height() / 2.0
         self._spawn_particle_burst(center_x, center_y, count=45)
 
-    def _spawn_particle_burst(self, x: float, y: float, count: int = 35) -> None:
+    def _spawn_particle_burst(self, x: float, y: float, count: int = 35, colors: Optional[List[QColor]] = None) -> None:
         """Create a vibrant shower of multi-shaped confetti, stars, and hearts."""
         shapes = ["star", "circle", "heart", "confetti"]
+        palette = colors if colors is not None else PALETTE
         for _ in range(count):
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(150.0, 750.0)
             vx = math.cos(angle) * speed
             vy = math.sin(angle) * speed - random.uniform(50.0, 200.0)
             size = random.uniform(8.0, 24.0)
-            color = random.choice(PALETTE)
+            color = random.choice(palette)
             shape = random.choice(shapes)
             decay_rate = random.uniform(0.4, 0.9)  # life drops by this per sec
             rot_speed = random.uniform(-360.0, 360.0)
@@ -352,12 +445,7 @@ class JimHaGame(QWidget):
             if self.esc_hold_progress >= 1.0:
                 self._exit_authorized = True
                 if not self.is_windowed:
-                    try:
-                        self.releaseKeyboard()
-                    except Exception as err:
-                        # Safe fallback: Wayland compositors or headless QPA plugins (e.g. offscreen)
-                        # may restrict or not support explicit keyboard releasing.
-                        pass
+                    self._safe_release_keyboard()
                 self.timer.stop()
                 if self.sound_bank:
                     self.sound_bank.close()
@@ -419,31 +507,36 @@ class JimHaGame(QWidget):
             return True
         return super().event(event)
 
+    def _safe_grab_keyboard(self) -> None:
+        """Safely grab exclusive keyboard input with diagnostic debug logging."""
+        try:
+            self.grabKeyboard()
+        except Exception as err:
+            logger.debug("Keyboard grab/release unhandled: %s", err)
+
+    def _safe_release_keyboard(self) -> None:
+        """Safely release keyboard grab with diagnostic debug logging."""
+        try:
+            self.releaseKeyboard()
+        except Exception as err:
+            logger.debug("Keyboard grab/release unhandled: %s", err)
+
     def showEvent(self, event: QShowEvent) -> None:
         """Grab exclusive keyboard focus upon display in default fullscreen mode."""
         super().showEvent(event)
         if not self.is_windowed and not self._exit_authorized:
-            try:
-                self.grabKeyboard()
-            except Exception as err:
-                # Safe fallback: Wayland compositors or headless QPA plugins (e.g. offscreen)
-                # may restrict or not support explicit keyboard grabbing.
-                pass
+            self._safe_grab_keyboard()
 
     def _handover_to_desktop(self) -> None:
         """Release exclusive keyboard grab and minimize JimHa to hand over control to desktop."""
+        self._handover_active = True
         self.alt_tab_is_pressed = False
         self.alt_tab_hold_progress = 0.0
         self.esc_is_pressed = False
         self.esc_hold_progress = 0.0
         self.rekka_nav_active = False
         if not self.is_windowed:
-            try:
-                self.releaseKeyboard()
-            except Exception as err:
-                # Safe fallback: Wayland compositors or headless QPA plugins (e.g. offscreen)
-                # may restrict or not support explicit keyboard releasing.
-                pass
+            self._safe_release_keyboard()
         self.showMinimized()
 
     def _trigger_kwin_switch(self, reverse: bool = False) -> bool:
@@ -462,34 +555,37 @@ class JimHaGame(QWidget):
                 msg.setArguments([action])
                 return bus.send(msg)
         except (ImportError, RuntimeError, Exception) as err:
-            # DBus KWin shortcut invocation is a best-effort desktop enhancement.
-            # Non-KDE Plasma desktop environments, headless tests (offscreen), or systems
-            # without a running session bus gracefully fallback to local state handling.
+            logger.debug("KWin shortcut switch failed: %s", err)
             return False
         return False
 
     def changeEvent(self, event: QEvent) -> None:
         """Aggressively reclaim focus and auto-relock fullscreen on window restore."""
-        if event.type() == QEvent.Type.WindowStateChange:
-            if not self.isMinimized() and not self._exit_authorized and not self.is_windowed:
-                if not self.isFullScreen():
-                    self.showFullScreen()
-                try:
-                    self.grabKeyboard()
-                except Exception as err:
-                    # Safe fallback: Wayland compositors or headless QPA plugins (e.g. offscreen)
-                    # may restrict or not support explicit keyboard grabbing.
-                    pass
-        elif event.type() == QEvent.Type.ActivationChange:
-            if not self.isMinimized() and not self.isActiveWindow() and not self._exit_authorized and not self.is_windowed:
+        if event.type() == QEvent.Type.ActivationChange:
+            if self.isActiveWindow() and not self.isMinimized():
+                self._handover_active = False
+            if not self._handover_active and not self.isMinimized() and not self.isActiveWindow() and not self._exit_authorized and not self.is_windowed:
                 self.activateWindow()
                 self.raise_()
                 self.setFocus()
+        elif event.type() == QEvent.Type.WindowStateChange:
+            if self._handover_active:
+                if not self.isMinimized():
+                    self._handover_active = False
+                    if not self.is_windowed and not self._exit_authorized:
+                        if not self.isFullScreen():
+                            self.showFullScreen()
+                        self._safe_grab_keyboard()
+            else:
+                if not self.isMinimized() and not self._exit_authorized and not self.is_windowed:
+                    if not self.isFullScreen():
+                        self.showFullScreen()
+                    self._safe_grab_keyboard()
         super().changeEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Prevent losing keyboard focus to background tasks in fullscreen mode."""
-        if not self._exit_authorized and not self.is_windowed and not self.isMinimized():
+        if not self._handover_active and not self._exit_authorized and not self.is_windowed and not self.isMinimized():
             self.setFocus()
         super().focusOutEvent(event)
 
@@ -510,13 +606,7 @@ class JimHaGame(QWidget):
     def force_close(self) -> None:
         """Programmatic teardown for automated test suites and headless rendering."""
         self._exit_authorized = True
-        if hasattr(self, "releaseKeyboard"):
-            try:
-                self.releaseKeyboard()
-            except Exception as err:
-                # Safe fallback: Wayland compositors or headless QPA plugins (e.g. offscreen)
-                # may restrict or not support explicit keyboard releasing.
-                pass
+        self._safe_release_keyboard()
         self.close()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -583,8 +673,9 @@ class JimHaGame(QWidget):
                     return
                 elif self.rekka_buffer.matches(QUICK_SWITCH_SEQUENCE):
                     self.rekka_nav_active = False
-                    self.trigger_key("⚡ QUICK SWITCH (REKKA) ⚡", "Quick Switch Handover", "⚡", QColor("#FFD600"))
-                    self._handover_to_desktop()
+                    self.trigger_key("⚡ QUICK SWITCH ⚡", "Desktop Handover Activated", "⚡", QColor("#FFD600"))
+                    self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=30)
+                    QTimer.singleShot(150, self, self._handover_to_desktop)
                     return
 
                 # 2. Check if the buffer is forming the Quick Switch sequence [UP, UP, DOWN].
@@ -662,13 +753,32 @@ class JimHaGame(QWidget):
             self._handover_to_desktop()
             return
         elif self.rekka_buffer.matches(QUICK_SWITCH_SEQUENCE):
-            self.trigger_key("⚡ QUICK SWITCH (REKKA) ⚡", "Quick Switch Handover", "⚡", QColor("#FFD600"))
-            self._handover_to_desktop()
+            self.rekka_nav_active = False
+            self.trigger_key("⚡ QUICK SWITCH ⚡", "Desktop Handover Activated", "⚡", QColor("#FFD600"))
+            self._spawn_particle_burst(self.width() / 2.0, self.height() / 2.0, count=30)
+            QTimer.singleShot(150, self, self._handover_to_desktop)
             return
         elif self.rekka_buffer.matches(NAVIGATOR_SEQUENCE):
             self.rekka_nav_active = True
             self.rekka_nav_last_action_time = time.time()
             self.rekka_nav_index = 0
+            self.current_key_title = "REKKA NAV"
+            self.current_subtitle = "🕹️ Switch App: [→ / ↓ Next] [← / ↑ Prev] [Enter Switch] [Esc Cancel]"
+            self.current_emoji = "🕹️"
+            self.current_color = QColor("#00E5FF")
+            self.card_age = 0.0
+            self.card_scale = 0.2
+            self.card_alpha = 1.0
+            if self.sound_bank:
+                self.sound_bank.play_key("ALT_TAB")
+            self._spawn_particle_burst(
+                self.width() / 2.0,
+                self.height() / 2.0,
+                count=20,
+                colors=[QColor("#00E5FF"), QColor("#FFD600")],
+            )
+            self.update()
+            return
 
         # 5. Standard Interactive Canvas Display
         text = event.text().strip().upper()
@@ -1021,6 +1131,8 @@ class JimHaGame(QWidget):
 
 def main():
     app = QApplication(sys.argv)
+    app.setApplicationName("jimha")
+    app.setDesktopFileName("jimha")
     game = JimHaGame()
     game.showFullScreen()
     sys.exit(app.exec())

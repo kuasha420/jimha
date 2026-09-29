@@ -4,10 +4,12 @@ Automated unit tests for JimHa standalone game.
 """
 
 import os
+import subprocess
 import sys
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, call, patch
 
 # Enforce offscreen Qt platform
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -19,11 +21,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from PyQt6.QtCore import QEvent, Qt
-from PyQt6.QtGui import QCloseEvent, QKeyEvent
+from PyQt6.QtGui import QCloseEvent, QColor, QFocusEvent, QKeyEvent
 from PyQt6.QtWidgets import QApplication
 
 from jimha.sound_synth import SoundBank, generate_chime_wav
-from jimha.main import JimHaGame, ALPHABET_COMPANIONS, RekkaBuffer
+from jimha.main import JimHaGame, ALPHABET_COMPANIONS, RekkaBuffer, ensure_kwin_shortcut_inhibition
 
 
 class TestRekkaBuffer(unittest.TestCase):
@@ -267,7 +269,7 @@ class TestJimHa(unittest.TestCase):
         game.force_close()
 
     def test_12_rekka_quick_switch(self):
-        """Verify Option C: [↑, ↑, ↓, ↓] triggers instant Quick-Switch banner and showMinimized."""
+        """Verify Option C: [↑, ↑, ↓, ↓] triggers instant Quick-Switch banner and showMinimized via singleShot."""
         game = JimHaGame(enable_audio=False, is_windowed=False)
         game.resize(800, 600)
         game.show()
@@ -277,8 +279,15 @@ class TestJimHa(unittest.TestCase):
             ev = QKeyEvent(QEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
             game.keyPressEvent(ev)
 
-        self.assertEqual(game.current_key_title, "⚡ QUICK SWITCH (REKKA) ⚡")
-        self.assertTrue(game.isMinimized(), "Quick-Switch must minimize the window")
+        self.assertEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
+        self.assertEqual(game.current_subtitle, "Desktop Handover Activated")
+        self.assertFalse(game.isMinimized(), "Quick-Switch must render visual feedback before minimizing")
+
+        # Allow singleShot 150ms delay to elapse and trigger handover
+        time.sleep(0.2)
+        QApplication.processEvents()
+        self.assertTrue(game.isMinimized(), "Quick-Switch must minimize the window after 150ms delay")
+        self.assertTrue(game._handover_active, "Handover flag must be set upon minimization")
         game.force_close()
 
     def test_13_rekka_timeout_decay(self):
@@ -316,7 +325,7 @@ class TestJimHa(unittest.TestCase):
             game.keyPressEvent(ev)
 
         # Because timeout decayed the buffer, it must NOT trigger Quick-Switch
-        self.assertNotEqual(game.current_key_title, "⚡ QUICK SWITCH (REKKA) ⚡")
+        self.assertNotEqual(game.current_key_title, "⚡ QUICK SWITCH ⚡")
 
         # Re-enter Navigator organically with [UP, UP] and commit via Enter
         for _ in range(2):
@@ -377,11 +386,15 @@ class TestJimHa(unittest.TestCase):
         # Minimize the window (simulating desktop handover)
         game._handover_to_desktop()
         self.assertTrue(game.isMinimized(), "Window must be minimized after handover")
+        self.assertTrue(game._handover_active, "Handover flag must be active while minimized")
 
-        # Restore window (simulating user clicking taskbar or OS restore)
+        # Restore window (simulating user clicking taskbar or OS restore with activation)
+        game.activateWindow()
         game.showNormal()
+        QApplication.processEvents()
         self.assertFalse(game.isMinimized(), "Window should no longer be minimized")
         self.assertTrue(game.isFullScreen(), "Window restore must auto-relock fullscreen kiosk mode")
+        self.assertFalse(game._handover_active, "Window restoration must clear _handover_active")
 
         game.force_close()
 
@@ -491,6 +504,150 @@ class TestJimHa(unittest.TestCase):
         with patch("PyQt6.QtDBus.QDBusConnection.sessionBus", side_effect=RuntimeError("DBus socket error")):
             res_fallback = game._trigger_kwin_switch(reverse=False)
             self.assertFalse(res_fallback, "DBus errors must be handled gracefully returning False")
+
+        game.force_close()
+
+    def test_19_handover_active_prevents_focus_hijacking(self):
+        """Verify _handover_active prevents changeEvent and focusOutEvent from hijacking focus."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.showFullScreen()
+
+        # Engage desktop handover
+        game._handover_to_desktop()
+        self.assertTrue(game._handover_active)
+        self.assertTrue(game.isMinimized())
+
+        # 1. ActivationChange during handover must NOT activate, raise, or steal focus
+        with patch.object(game, "activateWindow") as mock_act, \
+             patch.object(game, "raise_") as mock_raise, \
+             patch.object(game, "setFocus") as mock_focus:
+            ev_act = QEvent(QEvent.Type.ActivationChange)
+            game.changeEvent(ev_act)
+            mock_act.assert_not_called()
+            mock_raise.assert_not_called()
+            mock_focus.assert_not_called()
+
+        # 2. FocusOut during handover must NOT steal back focus
+        with patch.object(game, "setFocus") as mock_focus:
+            ev_focus_out = QFocusEvent(QEvent.Type.FocusOut)
+            game.focusOutEvent(ev_focus_out)
+            mock_focus.assert_not_called()
+
+        # 3. WindowStateChange while still minimized must NOT call showFullScreen
+        with patch.object(game, "showFullScreen") as mock_fs:
+            ev_state = QEvent(QEvent.Type.WindowStateChange)
+            game.changeEvent(ev_state)
+            mock_fs.assert_not_called()
+
+        game.force_close()
+
+    def test_20_window_restoration_clears_handover_active_and_relocks(self):
+        """Verify that genuine user restoration resets handover flag and relocks fullscreen kiosk."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.showFullScreen()
+
+        game._handover_to_desktop()
+        self.assertTrue(game._handover_active)
+
+        # Restore window by un-minimizing
+        game.showNormal()
+        QApplication.processEvents()
+
+        self.assertFalse(game._handover_active, "Handover flag must be cleared on window restore")
+        self.assertTrue(game.isFullScreen(), "Window must auto-relock fullscreen")
+        self.assertFalse(game.isMinimized())
+
+        game.force_close()
+
+    def test_21_ensure_kwin_shortcut_inhibition(self):
+        """Verify ensure_kwin_shortcut_inhibition sets kwin rules and handles errors transparently."""
+        # 1. Missing binaries returns False without error
+        with patch("shutil.which", return_value=None):
+            self.assertFalse(ensure_kwin_shortcut_inhibition())
+
+        # 2. SubprocessError returns False transparently and logs warning
+        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"), \
+             patch("subprocess.run", side_effect=subprocess.SubprocessError("kreadconfig failure")), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(ensure_kwin_shortcut_inhibition())
+            self.assertTrue(any("kreadconfig failure" in log_msg for log_msg in cm.output))
+
+        # 3. FileNotFoundError returns False transparently and logs warning
+        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"), \
+             patch("subprocess.run", side_effect=FileNotFoundError("binary not found")), \
+             self.assertLogs("jimha", level="WARNING") as cm:
+            self.assertFalse(ensure_kwin_shortcut_inhibition())
+            self.assertTrue(any("binary not found" in log_msg for log_msg in cm.output))
+
+        # 4. Fresh setup where kreadconfig6 returns returncode 1 (empty rules)
+        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"), \
+             patch("subprocess.run") as mock_run:
+            mock_read_res = MagicMock()
+            mock_read_res.returncode = 1
+            mock_read_res.stdout = ""
+            mock_run.return_value = mock_read_res
+
+            res = ensure_kwin_shortcut_inhibition()
+            self.assertTrue(res)
+
+            # Check that kwriteconfig6 was called to update rules and write properties
+            cmd_lines = [" ".join(call_item.args[0]) for call_item in mock_run.call_args_list]
+            self.assertTrue(any("jimha_lockdown" in line and "rules" in line for line in cmd_lines))
+            self.assertTrue(any("disableglobalshortcuts" in line for line in cmd_lines))
+            self.assertTrue(any("reconfigure" in line for line in cmd_lines))
+
+        # 5. Rule not present with other existing rules: writes jimha_lockdown rules and notifies KWin
+        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"), \
+             patch("subprocess.run") as mock_run:
+            mock_read_res = MagicMock()
+            mock_read_res.returncode = 0
+            mock_read_res.stdout = "other_rule1,other_rule2\n"
+            mock_run.return_value = mock_read_res
+
+            res = ensure_kwin_shortcut_inhibition()
+            self.assertTrue(res)
+
+            cmd_lines = [" ".join(call_item.args[0]) for call_item in mock_run.call_args_list]
+            self.assertTrue(any("other_rule1,other_rule2,jimha_lockdown" in line and "rules" in line for line in cmd_lines))
+            self.assertTrue(any("disableglobalshortcuts" in line for line in cmd_lines))
+            self.assertTrue(any("reconfigure" in line for line in cmd_lines))
+
+        # 6. Rule already present: returns True without running write or reconfigure commands
+        with patch("shutil.which", side_effect=lambda cmd: f"/usr/bin/{cmd}"), \
+             patch("subprocess.run") as mock_run:
+            mock_read_res = MagicMock()
+            mock_read_res.returncode = 0
+            mock_read_res.stdout = "other_rule1,jimha_lockdown\n"
+            mock_run.return_value = mock_read_res
+
+            res = ensure_kwin_shortcut_inhibition()
+            self.assertTrue(res)
+            # Only the initial read was performed
+            self.assertEqual(mock_run.call_count, 1)
+
+    def test_22_navigator_sequence_visual_takeover(self):
+        """Verify [UP, UP] triggers REKKA NAV visual takeover card and is not overwritten by UP."""
+        game = JimHaGame(enable_audio=False, is_windowed=False)
+        game.resize(800, 600)
+        game.show()
+
+        # Send [UP, UP]
+        for _ in range(2):
+            ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+            game.keyPressEvent(ev)
+
+        self.assertTrue(game.rekka_nav_active, "Double UP must activate Rekka Navigator")
+        self.assertEqual(game.current_key_title, "REKKA NAV", "Title must be REKKA NAV and not overwritten by UP")
+        self.assertEqual(
+            game.current_subtitle,
+            "🕹️ Switch App: [→ / ↓ Next] [← / ↑ Prev] [Enter Switch] [Esc Cancel]",
+        )
+        self.assertEqual(game.current_emoji, "🕹️")
+        self.assertEqual(game.current_color, QColor("#00E5FF"))
+        self.assertEqual(game.rekka_nav_idle_timeout, 5.0, "Idle timeout must be 5.0 seconds")
+        self.assertGreaterEqual(len(game.particles), 20, "Navigator activation must spawn at least 20 particles")
 
         game.force_close()
 
