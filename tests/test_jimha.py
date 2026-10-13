@@ -995,7 +995,8 @@ class TestJimHa(unittest.TestCase):
         # 5. Escaping of quotes / special characters via json.dumps
         clean_escape, script_escape = synthesize_kwin_handover_script('window"with"quotes')
         self.assertEqual(clean_escape, 'window"with"quotes')
-        self.assertIn(f"var target = {json.dumps('window\"with\"quotes')};", script_escape)
+        expected_escape = json.dumps('window"with"quotes')
+        self.assertIn(f"var target = {expected_escape};", script_escape)
 
     def test_32_execute_kwin_handover_dbus_execution(self):
         """Verify execute_kwin_handover loads, runs, and unloads transient script via D-Bus."""

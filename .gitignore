@@ -21,4 +21,5 @@ pkg/
 *~
 
 # Agent artifacts bridge
-.agents/
+.agents/artifacts
+.agents/teamwork/
