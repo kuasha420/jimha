@@ -5,7 +5,7 @@
 # Jimha 👑💖✨
 
 **Next-Gen Sovereign Sensory Playground for Toddlers**  
-*Smash any button, paint the universe!*
+_Smash any button, paint the universe!_
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri)](https://tauri.app)
@@ -40,11 +40,12 @@
 <td width="35%" valign="top">
 
 ### 🕹️ Game Overview
-*Smash any button, paint the universe!* A gentle, toddler-proof sensory wonderland crafted with love for Jimha.
 
-- **User Reviews**: ⭐⭐⭐⭐⭐ *Overwhelmingly Positive* (100% Toddler & Baby Approved 💖)
+_Smash any button, paint the universe!_ A gentle, toddler-proof sensory wonderland crafted with love for Jimha.
+
+- **User Reviews**: ⭐⭐⭐⭐⭐ _Overwhelmingly Positive_ (100% Toddler & Baby Approved 💖)
 - **Engine**: Tauri v2 + Pixi.js v8 + Svelte 5 (Runes) + Rust
-- **Developer**: Arafat Zahan *(with Jimha & AI Agent)*
+- **Developer**: Arafat Zahan _(with Jimha & AI Agent)_
 - **Audio Engine**: Double-Barreled PipeWire Native + Zero-GC Web Audio
 - **Display Target**: Wayland / X11 / SteamOS Fullscreen 60–120 FPS
 - **Safety Rating**: Certified Dad-Mode (7 Child-Safety Invariants)
@@ -90,12 +91,12 @@ Sitting on a sofa with an Arch Linux handheld Steam Deck, Jimha's father watched
 
 Activating the Steam Deck's microphone, her father dictated a prompt in his native Bengali:
 
-> *"ডিয়ার এজেন্ট, জিমহার জন্য এমন একটা ম্যাজিকাল প্লেগ্রাউন্ড বানাও—যেখানে ও যেকোনো কিবোর্ড বাটন চাপলেই বিশাল এনিমেশন, বাবল, তারা আর মিষ্টি পেন্টাটোনিক সুর বেজে উঠবে..."*  
-> *(Dear agent, build a magical playground for Jimha—where whenever she hits any keyboard button, giant animations, floating bubbles, glittering stars, and sweet pentatonic melodies ring out...)*
+> _"ডিয়ার এজেন্ট, জিমহার জন্য এমন একটা ম্যাজিকাল প্লেগ্রাউন্ড বানাও—যেখানে ও যেকোনো কিবোর্ড বাটন চাপলেই বিশাল এনিমেশন, বাবল, তারা আর মিষ্টি পেন্টাটোনিক সুর বেজে উঠবে..."_  
+> _(Dear agent, build a magical playground for Jimha—where whenever she hits any keyboard button, giant animations, floating bubbles, glittering stars, and sweet pentatonic melodies ring out...)_
 
-The speech-to-text model hesitated over the Bengali phonology of *"জিমহা"* (*Jimha*), matching it to the closest English phrase: **`"Jim Heart"`**. 
+The speech-to-text model hesitated over the Bengali phonology of _"জিমহা"_ (_Jimha_), matching it to the closest English phrase: **`"Jim Heart"`**.
 
-Across the room, the monitor erupted into starlight. The letter **`J`** was crowned **`👑 Jimha!`**, but honoring the acoustic spark of that prompt, **`H`** was forever inscribed as **`💖 Jim Heart!`**. 
+Across the room, the monitor erupted into starlight. The letter **`J`** was crowned **`👑 Jimha!`**, but honoring the acoustic spark of that prompt, **`H`** was forever inscribed as **`💖 Jim Heart!`**.
 
 Thus, the twin identities were born: **Queen Jimha** (the laughing toddler monarch of her tactile playground) and **Jim Heart** (her cosmic superhero alter ego). Read the full mythological backstory in [**The Official Lorebook (`docs/LORE.md`)**](docs/LORE.md).
 
@@ -105,23 +106,24 @@ Thus, the twin identities were born: **Queen Jimha** (the laughing toddler monar
 
 Children do not interact with software like adults. An 18-month-old toddler explores by leaning elbows, slapping ten fingers at once, and tapping every pixel. Jimha is governed by **7 Child-Safety Invariants**:
 
-| # | Invariant | Threat Vector | Technical Safeguard |
-| :-: | :--- | :--- | :--- |
-| **1** | **The Exit Fortress** | Accidental game closing & forearm slaps | Compound `Shift + Esc` 2.5s hold + elbow rejection (`pressedKeys.size > 2`). Lone `Escape` triggers playful `🚀 BLAST OFF!` card. |
-| **2** | **Pediatric Hearing Protection** | Acoustic summing & speaker pops | 0.8 safe volume clamp across native and web audio + 4-voice process stealing pool. |
-| **3** | **Bubble Lagoon Ceiling** | Unbounded memory growth & visual noise | Strict 25-bubble FIFO ceiling with auto-popping of oldest bubbles. |
-| **4** | **Dynamic Cadence Budget** | Visual sensory overload & GPU spikes | Rolling 500ms cadence window throttles particle bursts from 28 to 8 when $\ge 4$ keys/500ms. |
-| **5** | **20-Second Attract Drift** | OLED burn-in & unattended screen battery | Inactivity for 20s transitions the canvas into a soft, breathing starlight lullaby. |
-| **6** | **Toddler Gesture Gate** | Trapped in modal dialogs | 450ms hold or upward swipe to open Sticker Book; any keypress or backdrop touch escapes. |
-| **7** | **100% Pentatonic Consonance** | Musical dissonance & cacophony | All keys map to an 11-tone C4–C6 major pentatonic scale; any random smash produces sweet harmony. |
+|   #   | Invariant                        | Threat Vector                            | Technical Safeguard                                                                                                               |
+| :---: | :------------------------------- | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **The Exit Fortress**            | Accidental game closing & forearm slaps  | Compound `Shift + Esc` 2.5s hold + elbow rejection (`pressedKeys.size > 2`). Lone `Escape` triggers playful `🚀 BLAST OFF!` card. |
+| **2** | **Pediatric Hearing Protection** | Acoustic summing & speaker pops          | 0.8 safe volume clamp across native and web audio + 4-voice process stealing pool.                                                |
+| **3** | **Bubble Lagoon Ceiling**        | Unbounded memory growth & visual noise   | Strict 25-bubble FIFO ceiling with auto-popping of oldest bubbles.                                                                |
+| **4** | **Dynamic Cadence Budget**       | Visual sensory overload & GPU spikes     | Rolling 500ms cadence window throttles particle bursts from 28 to 8 when $\ge 4$ keys/500ms.                                      |
+| **5** | **20-Second Attract Drift**      | OLED burn-in & unattended screen battery | Inactivity for 20s transitions the canvas into a soft, breathing starlight lullaby.                                               |
+| **6** | **Toddler Gesture Gate**         | Trapped in modal dialogs                 | 450ms hold or upward swipe to open Sticker Book; any keypress or backdrop touch escapes.                                          |
+| **7** | **100% Pentatonic Consonance**   | Musical dissonance & cacophony           | All keys map to an 11-tone C4–C6 major pentatonic scale; any random smash produces sweet harmony.                                 |
 
-👉 *For full mathematical, acoustic, and behavioral explanations, read [**The 7 Dad-Mode Invariants Guide (`docs/DAD_MODE_INVARIANTS.md`)**](docs/DAD_MODE_INVARIANTS.md).*
+👉 _For full mathematical, acoustic, and behavioral explanations, read [**The 7 Dad-Mode Invariants Guide (`docs/DAD_MODE_INVARIANTS.md`)**](docs/DAD_MODE_INVARIANTS.md)._
 
 ---
 
 ## 🎮 Interactive Controls & Cheats
 
 ### Playful Toddler Exploration
+
 - **`A`–`Z`**: Massive spring-bounced typography with radiant halos and companion emojis (e.g. `A` for 🍎 Apple, `B` for 🦋 Butterfly).
 - **`J`**: 👑 **Queen Jimha** royal crown fanfare!
 - **`H`**: 💖 **Jim Heart** cosmic alter ego easter egg!
@@ -133,11 +135,13 @@ Children do not interact with software like adults. An 18-month-old toddler expl
 - **Mouse / Touch Drag**: Spawns floating, translucent soap bubbles that rise and pop on touch.
 
 ### Engineering Parent Controls
+
 - **Exit Game**: Hold **`Shift + Escape`** continuously for 2.5 seconds (radial countdown HUD displays progress).
 - **Parent Virtual Switcher**: Press **`Up, Up`** rapidly or tap the top-right indicator to open the KWin D-Bus window switcher and seamlessly hand over focus without closing Jimha.
 - **Parent Gate**: 450ms long-press or upward swipe opens the **Sticker Book** to inspect unlocked badges.
 
 ### Arcade Cheats
+
 - **The Konami Sequence**:
   $$\uparrow \quad \uparrow \quad \downarrow \quad \downarrow \quad \leftarrow \quad \rightarrow \quad \leftarrow \quad \rightarrow \quad \text{B} \quad \text{A}$$
   Unleashes **Rainbow God Mode**: full-screen multi-layer fireworks, continuous celestial chimes, and unlocks the coveted `konami_champion` badge.
@@ -158,30 +162,32 @@ Jimha is built on non-linear parallel evolution across 5 tracks:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-👉 *Explore the complete architectural roadmap in [**Macro Roadmap (`docs/ROADMAP.md`)**](docs/ROADMAP.md).*
+👉 _Explore the complete architectural roadmap in [**Macro Roadmap (`docs/ROADMAP.md`)**](docs/ROADMAP.md)._
 
 ---
 
 ## 📚 Complete Documentation Suite
 
-| Document | Purpose |
-| :--- | :--- |
-| [**Architecture & Deep-Dive**](docs/ARCHITECTURE.md) | The Self-Contained Product Invariant, PipeWire audio engine, KWin D-Bus ECMAScript injection, and PixiJS v8 particle pipeline. |
-| [**The 7 Dad-Mode Invariants**](docs/DAD_MODE_INVARIANTS.md) | Engineering parent perspective on why 18-month-old software requires specialized safety laws. |
-| [**Universe Lorebook**](docs/LORE.md) | The Steam Deck voice prompt, Queen Jimha vs Jim Heart, and the 7 Badges of Honor. |
-| [**Macro Product Roadmap**](docs/ROADMAP.md) | The 5 Concurrent Capability Tracks, Adaptive Growth Tiers, and Polyglot Phonics. |
-| [**Packaging & Distribution**](docs/PACKAGING.md) | Arch Linux `PKGBUILD`, Flatpak `org.purrfect.jimha`, and user-space deployment. |
+| Document                                                     | Purpose                                                                                                                        |
+| :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| [**Architecture & Deep-Dive**](docs/ARCHITECTURE.md)         | The Self-Contained Product Invariant, PipeWire audio engine, KWin D-Bus ECMAScript injection, and PixiJS v8 particle pipeline. |
+| [**The 7 Dad-Mode Invariants**](docs/DAD_MODE_INVARIANTS.md) | Engineering parent perspective on why 18-month-old software requires specialized safety laws.                                  |
+| [**Universe Lorebook**](docs/LORE.md)                        | The Steam Deck voice prompt, Queen Jimha vs Jim Heart, and the 7 Badges of Honor.                                              |
+| [**Macro Product Roadmap**](docs/ROADMAP.md)                 | The 5 Concurrent Capability Tracks, Adaptive Growth Tiers, and Polyglot Phonics.                                               |
+| [**Packaging & Distribution**](docs/PACKAGING.md)            | Arch Linux `PKGBUILD`, Flatpak `org.purrfect.jimha`, and user-space deployment.                                                |
 
 ---
 
 ## 🚀 Developer Quickstart & Hermetic Verification
 
 ### Prerequisites
+
 - **Node.js**: $\ge 20.x$, **pnpm**: $\ge 9.x$
 - **Rust & Cargo**: $\ge 1.78$
 - Linux system libraries: `webkit2gtk-4.1`, `gtk3`
 
 ### Setup & Run
+
 ```bash
 # 1. Clone repository
 git clone https://github.com/kuasha420/jimha.git
@@ -199,6 +205,7 @@ pnpm tauri dev
 ```
 
 ### Hermetic Verification Suite
+
 In adherence to **PSL-INV-001** and **PSL-INV-002**, verify the complete stack with sub-second test benchmarks:
 
 ```bash
@@ -223,7 +230,7 @@ makepkg -si
 flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.purrfect.jimha.yml
 ```
 
-👉 *See [**Packaging & Distribution Guide (`docs/PACKAGING.md`)**](docs/PACKAGING.md) for full instructions.*
+👉 _See [**Packaging & Distribution Guide (`docs/PACKAGING.md`)**](docs/PACKAGING.md) for full instructions._
 
 ---
 

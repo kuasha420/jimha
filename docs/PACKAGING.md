@@ -22,16 +22,18 @@ This guide covers building, testing, packaging, and installing **Jimha** across 
 Building Jimha natively from source requires the following toolchain dependencies:
 
 ### Core Runtimes & Compilers
+
 - **Node.js**: $\ge 20.x$
 - **pnpm**: $\ge 9.x$ (`corepack enable pnpm` or `npm install -g pnpm`)
 - **Rust & Cargo**: $\ge 1.78$ (`rustup default stable`)
 
 ### Native System Libraries (Debian / Ubuntu / Fedora / Arch)
-| Distribution | Install Command |
-| :--- | :--- |
-| **Arch Linux / SteamOS** | `sudo pacman -S --needed base-devel webkit2gtk-4.1 gtk3 pnpm rust nodejs` |
+
+| Distribution               | Install Command                                                                                                                |
+| :------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **Arch Linux / SteamOS**   | `sudo pacman -S --needed base-devel webkit2gtk-4.1 gtk3 pnpm rust nodejs`                                                      |
 | **Debian / Ubuntu 22.04+** | `sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev build-essential curl` |
-| **Fedora 39+** | `sudo dnf install -y gtk3-devel webkit2gtk4.1-devel libsoup3-devel javascriptcoregtk4.1-devel` |
+| **Fedora 39+**             | `sudo dnf install -y gtk3-devel webkit2gtk4.1-devel libsoup3-devel javascriptcoregtk4.1-devel`                                 |
 
 ---
 
@@ -40,6 +42,7 @@ Building Jimha natively from source requires the following toolchain dependencie
 Jimha includes an official production-grade `PKGBUILD` in the repository root for Arch Linux, Manjaro, EndeavourOS, and the Steam Deck (SteamOS Desktop Mode).
 
 ### Local Build & Installation
+
 To build and install the package locally:
 
 ```bash
@@ -52,6 +55,7 @@ makepkg -si
 ```
 
 ### What `PKGBUILD` Installs:
+
 - Binary: `/usr/bin/jimha`
 - Desktop Launcher: `/usr/share/applications/org.purrfect.jimha.desktop`
 - AppStream Metadata: `/usr/share/metainfo/org.purrfect.jimha.metainfo.xml`
@@ -63,6 +67,7 @@ makepkg -si
 - License: `/usr/share/licenses/jimha/LICENSE`
 
 ### Updating or Uninstalling
+
 ```bash
 # Remove native package
 sudo pacman -R jimha
@@ -77,6 +82,7 @@ Flatpak provides an isolated, immutable runtime that runs identically across eve
 The Flatpak manifest is maintained under [`packaging/flatpak/org.purrfect.jimha.yml`](../packaging/flatpak/org.purrfect.jimha.yml).
 
 ### Flatpak Manifest Specification
+
 ```yaml
 app-id: org.purrfect.jimha
 runtime: org.gnome.Platform
@@ -105,12 +111,14 @@ finish-args:
 ### Building the Flatpak Locally
 
 1. **Install Flatpak and Builder**:
+
    ```bash
    sudo pacman -S flatpak flatpak-builder  # Arch
    sudo apt install flatpak flatpak-builder # Ubuntu/Debian
    ```
 
 2. **Install GNOME 47 Runtime and Extensions**:
+
    ```bash
    flatpak install flathub \
      org.gnome.Platform//47 \
@@ -120,6 +128,7 @@ finish-args:
    ```
 
 3. **Compile and Install into User Repository**:
+
    ```bash
    # From repository root
    flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.purrfect.jimha.yml
@@ -137,6 +146,7 @@ finish-args:
 For developers or air-gapped workstations without root (`sudo`) access, Jimha can be built and installed completely into the user's home directory.
 
 ### Build and Copy Script
+
 ```bash
 # 1. Build frontend assets
 pnpm install --frozen-lockfile
@@ -178,7 +188,7 @@ To add Jimha as a handheld non-Steam game on the Steam Deck:
 2. Open the Steam client on the desktop.
 3. Click **Games** in the top menu $\rightarrow$ **Add a Non-Steam Game to My Library...**
 4. Check **Jimha** from the application list and click **Add Selected Programs**.
-5. *(Optional)* Right-click Jimha in your Steam Library $\rightarrow$ **Properties**:
+5. _(Optional)_ Right-click Jimha in your Steam Library $\rightarrow$ **Properties**:
    - In **Launch Options**, set:
      ```
      MESA_VK_WSI_PRESENT_MODE=immediate %command%
@@ -190,6 +200,7 @@ To add Jimha as a handheld non-Steam game on the Steam Deck:
 ## 6. Packaging Verification Checklist
 
 Prior to publishing any release archive or package build, verify:
+
 - [ ] `pnpm test` passes 100% of unit tests with sub-second execution.
 - [ ] `cargo test --manifest-path src-tauri/Cargo.toml` passes 100% of backend tests.
 - [ ] `org.purrfect.jimha.desktop` passes validation: `desktop-file-validate org.purrfect.jimha.desktop`.

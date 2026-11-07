@@ -3,11 +3,11 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Arafat Zahan (@kuasha420) -->
 
-## 1. Architectural Philosophy & The Sovereign Product Guarantee
+## 1. Architectural Philosophy & The Self-Contained Product Invariant
 
 Jimha is engineered as a **100% sovereign, self-contained, offline-first sensory playground**.
 
-While its historical engineering spark originated during an exploratory pair-programming session orchestrated across the Knot Mesh (a multi-node hardware cluster), **Jimha as a software product possesses zero hard dependencies on external daemons, cloud endpoints, or external network fabrics**. 
+While its historical engineering spark originated during an exploratory pair-programming session orchestrated across the Knot Mesh (a multi-node hardware cluster), **Jimha as a software product possesses zero hard dependencies on external daemons, cloud endpoints, or external network fabrics**.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -20,6 +20,7 @@ While its historical engineering spark originated during an exploratory pair-pro
 ```
 
 A parent on a commercial airliner or off-grid cabin running Arch Linux, Fedora, Ubuntu, SteamOS, or an Android tablet can launch Jimha in complete airplane mode:
+
 1. **Zero External Sockets**: The application binds zero listening TCP/UDP ports and initiates zero outbound HTTP/WebSocket network connections.
 2. **Local-First XDG Persistence**:
    - Runtime configuration and unlocks: `$XDG_DATA_HOME/jimha/` (defaulting to `~/.local/share/jimha/`).
@@ -76,7 +77,7 @@ flowchart TD
 
 ## 3. Double-Barreled Audio Engine
 
-Toddlers smash keyboards with open palms and unpredictable fury. Standard browser audio engines quickly suffer from garbage-collection stutter, audio context clipping, or crackling when subjected to 15 concurrent keystrokes. 
+Toddlers smash keyboards with open palms and unpredictable fury. Standard browser audio engines quickly suffer from garbage-collection stutter, audio context clipping, or crackling when subjected to 15 concurrent keystrokes.
 
 Jimha resolves this with a **Double-Barreled Audio Architecture**:
 
@@ -97,31 +98,36 @@ Jimha resolves this with a **Double-Barreled Audio Architecture**:
 ```
 
 ### A. Native PipeWire Engine (`src-tauri/src/audio.rs`)
+
 Under Linux and SteamOS, audio events are offloaded over Tauri IPC to `NativeAudioEngine`:
+
 - **Direct PipeWire Handover**: Dispatches playback directly via `pw-play --media-role=Game --volume=0.8` (or `paplay` on legacy PulseAudio systems).
 - **Pre-warmed Harmonic Cache**: Generates 44.1 kHz 16-bit stereo PCM WAV files with RIFF headers into `$XDG_CACHE_HOME/jimha/audio_cache_v2/` on cold boot. The waveform combines five harmonic overtones ($1.0f$, $2.0f$, $3.0f$, $4.2f$, $5.4f$) with dual exponential decay envelopes ($e^{-2.5t}$ body, $e^{-5.5t}$ shimmer).
 - **Strict 4-Voice Stealing**: Key drumming can spawn dozens of notes per second. `NativeAudioEngine` maintains an internal process pool bounded to 4 concurrent voices. When voice 5 arrives, the oldest process is cleanly terminated (`pool.drain(..1).next().kill()`), eliminating acoustic distortion and CPU thread exhaustion.
 
 ### B. Web Audio Synthesizer Fallback (`src/lib/audio/`)
+
 When running outside native PipeWire environments:
+
 - Employs Web Audio API with zero-allocation buffer caches.
 - Clamps master output gain to `0.8` to satisfy **Invariant 2 (Pediatric Hearing Protection)**.
 - Uses micro-fade envelopes on note releases to prevent speaker pop transients.
 
 ### C. Generative Ambient BGM State Machine (`src/lib/audio/ambient-bgm.ts`)
+
 Jimha features a continuous generative soundtrack tuned to celestial music box harmonics. The background music operates as a 3-state finite state machine (FSM):
 
-| State | Volume | Musical Behavior | Trigger Condition |
-| :--- | :--- | :--- | :--- |
-| **`idle`** | `0.15` | Soothing starlit arpeggio (C4–C6) cycling every 4.2 seconds | Normal exploration or attract mode |
-| **`playing`** | `0.05` | Ducks down by 10 dB into the background | Active key smashing / drumming (restores 1.8s after last input) |
-| **`ui`** | `0.10` | Warm low-pass filtered chord progression | Open Sticker Book modal or Parent HUD |
+| State         | Volume | Musical Behavior                                            | Trigger Condition                                               |
+| :------------ | :----- | :---------------------------------------------------------- | :-------------------------------------------------------------- |
+| **`idle`**    | `0.15` | Soothing starlit arpeggio (C4–C6) cycling every 4.2 seconds | Normal exploration or attract mode                              |
+| **`playing`** | `0.05` | Ducks down by 10 dB into the background                     | Active key smashing / drumming (restores 1.8s after last input) |
+| **`ui`**      | `0.10` | Warm low-pass filtered chord progression                    | Open Sticker Book modal or Parent HUD                           |
 
 ---
 
 ## 4. Kiosk Mode & KWin D-Bus Handover
 
-When toddlers play, accidental window switches or taskbar interactions ruin the immersive sensory cocoon. In enterprise or arcade environments, typical kiosk applications brutally capture global inputs or minimize every other window on screen. 
+When toddlers play, accidental window switches or taskbar interactions ruin the immersive sensory cocoon. In enterprise or arcade environments, typical kiosk applications brutally capture global inputs or minimize every other window on screen.
 
 Jimha implements surgical compositor integration:
 
@@ -147,6 +153,7 @@ sequenceDiagram
 ```
 
 ### Key Technical Safeguards:
+
 1. **Surgical Resource Matching**: KWin scripts generated by `synthesize_kwin_handover_script` explicitly target `w.resourceClass === "jimha"` or exact caption `Jimha`. Unlike naive pattern matchers, this never inadvertently minimizes a parent's terminal or code editor with "jimha" in the file path.
 2. **KWin Shortcut Inhibition Rule**: Under KDE Plasma 6, `ensure_kwin_shortcut_inhibition()` registers a `jimha_lockdown` entry in `kwinrulesrc` with `disableglobalshortcuts=true`, preventing accidental workspace switching or system launcher activation while the game is focused.
 3. **Transient Script Lifecycle**: Handover ECMAScript files are written to `/tmp/jimha_handover_<pid>.js`, executed via `org.kde.kwin.Scripting`, and immediately unloaded and removed from disk.
@@ -176,20 +183,26 @@ The visual engine is built on Pixi.js v8 to sustain 120 FPS animation on variabl
 ```
 
 ### A. Elastic Spring Typography (`src/lib/engine/spring.ts`)
+
 Characters scale dynamically with a second-order spring dynamics curve:
 $$\ddot{x} + 2\zeta\omega\dot{x} + \omega^2(x - x_{\text{target}}) = 0$$
+
 - Initial scale: $0.20$ (spawns from deep center).
 - Peak overshoot: $1.28$ (explosive bouncy pop).
 - Settling equilibrium: $1.00$ with gentle damped oscillation.
 
 ### B. Dynamic Cadence Window Throttling (`src/lib/engine/particles.ts`)
+
 To protect toddlers from visual overstimulation and prevent GPU vertex thrashing:
+
 - The system measures input density over a rolling 500ms sliding window.
 - **Normal Play** ($< 4$ keys / 500ms): Emits 28 high-velocity rainbow particles with gravity and velocity decay.
 - **Rapid Smashing** ($\ge 4$ keys / 500ms): Throttles emitter burst down to 8 compact particles.
 
 ### C. 25-Bubble Lagoon Ceiling
+
 Tapping or pointer drag across the display spawns interactive floating soap bubbles.
+
 - To prevent unbounded memory consumption and visual clutter, the bubble collection is clamped to a strict maximum of **25 bubbles**.
 - When bubble 26 is spawned, the oldest existing bubble immediately pops with a soft chime and radial mist particle burst before removal.
 
@@ -198,6 +211,7 @@ Tapping or pointer drag across the display spawns interactive floating soap bubb
 ## 6. Svelte 5 Runes & State Management
 
 The frontend state architecture avoids legacy stores in favor of modern **Svelte 5 Runes**:
+
 - `$state` powers interactive modal states, cadence counters, and active badges.
 - `$derived` computes reactive metrics such as remaining exit-hold duration and active theme palettes.
 - `$effect` manages clean mounting and teardown of Pixi canvas viewports and resize observers.
@@ -207,7 +221,7 @@ The frontend state architecture avoids legacy stores in favor of modern **Svelte
 <script lang="ts">
   let { isHolding = false, progress = 0 } = $props();
   let ringDashOffset = $derived(283 * (1 - progress));
-  let statusText = $derived(progress >= 1.0 ? "UNLOCKED!" : "HOLD TO EXIT");
+  let statusText = $derived(progress >= 1.0 ? 'UNLOCKED!' : 'HOLD TO EXIT');
 </script>
 ```
 
@@ -216,6 +230,7 @@ The frontend state architecture avoids legacy stores in favor of modern **Svelte
 ## 7. Verification Standards & Benchmarks
 
 In compliance with **PSL-INV-001** and **PSL-INV-002**:
+
 - **Frontend Test Suite**: 11 test suites comprising 69 vitest unit tests executing in **<1.7 seconds**.
 - **Rust Backend Suite**: Hermetic cargo unit tests verifying RIFF header construction, UUID string parsing, base64 encoding, and KWin script synthesis executing in **<0.5 seconds**.
 - **Zero Synthetic Mocks**: Audio tests validate real generated binary WAV buffers and byte headers.
