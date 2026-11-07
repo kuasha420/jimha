@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.purrfect.jimha</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Jimha</name>
+  <summary>Toddler-safe fullscreen interactive sensory key smash wonderland</summary>
+  <developer_name>Purrfect Software Limited (PSL)</developer_name>
+
+  <description>
+    <p>
+      Jimha is a next-generation adaptive sensory playground and toddler-safe fullscreen key smash game.
+      Designed with extreme kiosk security, high-contrast spring typography, liquid floating bubbles,
+      real-time DSP pentatonic chime synthesizers, multi-touch drumming, and Steam Deck controller integration.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Toddler-safe lock: Swallows destructive system key combinations (Alt+F4, Ctrl+W, F5, F11, Escape).</li>
+      <li>Adult Esc hold gate: Requires holding Escape continuously for 3.0 seconds to exit.</li>
+      <li>Parent Alt+Tab gate: 2.0-second continuous hold with built-in Virtual Switcher carousel.</li>
+      <li>Steam Deck &amp; Gamepad support: D-pad, ABXY buttons, and analog sticks with Konami code combos!</li>
+      <li>Multi-touch drumming &amp; palm tap detection: Multi-bubble popping and celebratory particle bursts.</li>
+      <li>100% private, offline, zero-tracking child progression with unlockable milestone badges.</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">org.purrfect.jimha.desktop</launchable>
+
+  <categories>
+    <category>Game</category>
+    <category>KidsGame</category>
+    <category>Education</category>
+  </categories>
+
+  <keywords>
+    <keyword>toddler</keyword>
+    <keyword>gamepad</keyword>
+    <keyword>steamdeck</keyword>
+    <keyword>sensory</keyword>
+    <keyword>kiosk</keyword>
+    <keyword>music</keyword>
+    <keyword>chime</keyword>
+    <keyword>bubble</keyword>
+  </keywords>
+
+  <url type="homepage">https://github.com/kuasha420/jimha</url>
+  <url type="bugtracker">https://github.com/kuasha420/jimha/issues</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/kuasha420/jimha/main/assets/screenshot_1_welcome.png</image>
+      <caption>Jimha sensory welcome screen</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kuasha420/jimha/main/assets/screenshot_2_jimha_crown.png</image>
+      <caption>High-contrast typography and glowing halo</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kuasha420/jimha/main/assets/screenshot_3_easter_egg.png</image>
+      <caption>Konami code easter egg celebration</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kuasha420/jimha/main/assets/screenshot_4_number_stars.png</image>
+      <caption>Numbers with counting stars</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kuasha420/jimha/main/assets/screenshot_5_exit_hud.png</image>
+      <caption>3-second continuous Escape exit protection HUD</caption>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="2.0.0" date="2026-11-07">
+      <description>
+        <p>Phase 5 Major Release: Multi-Touch Multiplexer, Steam Deck Gamepad Integration, Linux Packaging (Flatpak &amp; PKGBUILD), and Dual-Auditor Gate readiness.</p>
+      </description>
+    </release>
+  </releases>
+</component>

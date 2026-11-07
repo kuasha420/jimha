@@ -13,6 +13,10 @@
     QUICK_SWITCH_SEQUENCE,
     NAVIGATOR_SEQUENCE,
   } from './lib/engine/rekka';
+  import {
+    GamepadManager,
+    type GamepadButtonEvent
+  } from './lib/engine/gamepad';
   import { STICKERS } from './lib/content/stickers';
   import type { InstrumentId } from './lib/content/instruments';
   import { APP_NAME } from './lib/constants';
@@ -34,6 +38,7 @@
   let pixiCanvas: PixiCanvas | null = $state(null);
   let switcherRef: VirtualSwitcher | null = $state(null);
   let audioManager: JimhaAudioManager | null = null;
+  let gamepadManager: GamepadManager | null = null;
   let touchCount = $state(0);
   let lastNoteName = $state('');
 
@@ -121,7 +126,7 @@
   async function triggerKonamiHandover() {
     void recordProgressionEvent('konami', 'KONAMI');
     if (pixiCanvas) {
-      pixiCanvas.triggerKey('👑 30 LIVES GRANTED! 🚀💖✨', '#FF4081');
+      pixiCanvas.triggerKey('👑 30 LIVES GRANTED! 🚀💖✨', { color: '#FF4081' });
     }
     if (audioManager) {
       audioManager.playKey('ENTER');
@@ -343,6 +348,73 @@
     }
   }
 
+  function handleGamepadButtonDown(event: GamepadButtonEvent) {
+    if (isStickerBookOpen) {
+      if (['B', 'START', 'SELECT'].includes(event.buttonId)) {
+        isStickerBookOpen = false;
+      }
+      return;
+    }
+
+    if (virtualSwitcherActive) {
+      switcherLastActionTime = performance.now();
+      if (event.buttonId === 'B') {
+        virtualSwitcherActive = false;
+        rekka.clear();
+        return;
+      }
+      if (event.buttonId === 'A' || event.buttonId === 'START') {
+        virtualSwitcherActive = false;
+        switcherRef?.commitSelection();
+        return;
+      }
+      if (['RIGHT', 'DOWN', 'RB', 'RT'].includes(event.buttonId)) {
+        switcherRef?.cycleNext();
+        if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+          virtualSwitcherActive = false;
+          void triggerQuickSwitchHandover();
+        }
+        return;
+      }
+      if (['LEFT', 'UP', 'LB', 'LT'].includes(event.buttonId)) {
+        switcherRef?.cyclePrev();
+        return;
+      }
+      return;
+    }
+
+    // Check combos from gamepad RekkaBuffer feeds
+    if (rekka.matches(KONAMI_SEQUENCE)) {
+      void triggerKonamiHandover();
+      return;
+    }
+
+    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+      void triggerQuickSwitchHandover();
+      return;
+    }
+
+    if (rekka.matches(NAVIGATOR_SEQUENCE)) {
+      void openVirtualSwitcher();
+      return;
+    }
+
+    // Gamepad button audio, visual and progression dispatch
+    void recordProgressionEvent('key_press', event.buttonId);
+
+    if (audioManager) {
+      const selection = audioManager.playKey(event.buttonId);
+      lastNoteName = selection.noteName;
+    }
+
+    if (pixiCanvas) {
+      pixiCanvas.triggerKey(event.meta.label, {
+        emoji: event.meta.emoji,
+        color: event.meta.color,
+      });
+    }
+  }
+
   function tick() {
     const now = performance.now();
 
@@ -383,6 +455,12 @@
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
+    gamepadManager = new GamepadManager({
+      rekkaBuffer: rekka,
+      onButtonDown: handleGamepadButtonDown,
+    });
+    gamepadManager.attach();
+
     void callTauri('kiosk_inhibit_shortcuts');
 
     void callTauri<ChildProfile>('profile_get').then((loadedProfile) => {
@@ -410,6 +488,10 @@
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
+    if (gamepadManager) {
+      gamepadManager.detach();
+      gamepadManager = null;
+    }
     if (animFrameId !== null) {
       cancelAnimationFrame(animFrameId);
     }

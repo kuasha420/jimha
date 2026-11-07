@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Jimha
+GenericName=Toddler Sensory Playground
+Comment=Toddler-safe fullscreen interactive key smash wonderland
+Exec=jimha
+Icon=org.purrfect.jimha
+Terminal=false
+Categories=Game;KidsGame;Education;
+Keywords=game;kids;toddler;keys;smash;jimha;sensory;steamdeck;gamepad;
+StartupNotify=true
+StartupWMClass=jimha

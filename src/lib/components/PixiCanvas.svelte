@@ -11,6 +11,10 @@
     type Particle,
     type FloatingBubble
   } from '../engine/particles';
+  import {
+    InputMultiplexer,
+    hitTestAndPop
+  } from '../engine/input-multiplexer';
 
   interface Props {
     onBubblePop?: (bubble: FloatingBubble) => void;
@@ -28,8 +32,8 @@
   let currentSubtitle = $state('💖 Smash any button to play! 💖');
   let currentEmoji = $state('✨');
   let currentColor = $state('#FF4081');
-  let cardAge = $state(0.0);
-  let backgroundHue = $state(260.0);
+  let cardAge = 0.0;
+  let backgroundHue = 260.0;
 
   // Entities
   let particles: Particle[] = [];
@@ -58,17 +62,28 @@
     });
   }
 
+  export interface TriggerKeyOptions {
+    subtitle?: string;
+    emoji?: string;
+    color?: string;
+  }
+
   export function triggerKey(
     keyInput: string,
-    customSubtitle?: string,
+    subtitleOrOptions?: string | TriggerKeyOptions,
     customEmoji?: string,
     customColor?: string
   ): void {
+    const isOptionsObj = typeof subtitleOrOptions === 'object' && subtitleOrOptions !== null;
+    const customSubtitle = isOptionsObj ? subtitleOrOptions.subtitle : subtitleOrOptions;
+    const finalEmoji = isOptionsObj ? subtitleOrOptions.emoji : customEmoji;
+    const finalColor = isOptionsObj ? subtitleOrOptions.color : customColor;
+
     const resolved = resolveKeyDisplay(keyInput);
     currentTitle = resolved.title;
     currentSubtitle = customSubtitle ?? resolved.subtitle;
-    currentEmoji = customEmoji ?? resolved.emoji;
-    currentColor = customColor ?? resolved.color ?? getRandomColor();
+    currentEmoji = finalEmoji ?? resolved.emoji;
+    currentColor = finalColor ?? resolved.color ?? getRandomColor();
     cardAge = 0.0;
 
     if (app && app.screen) {
@@ -327,16 +342,64 @@
     updateStageText();
   }
 
+  const inputMultiplexer = new InputMultiplexer({
+    onPointerDown: (point) => {
+      handleContact(point.x, point.y);
+    },
+    onPointerMove: (point) => {
+      const { hitBubble, remainingBubbles } = hitTestAndPop({ x: point.x, y: point.y }, bubbles);
+      if (hitBubble) {
+        bubbles = remainingBubbles;
+        const burst = spawnParticleBurst(hitBubble.x, hitBubble.y, 18);
+        particles.push(...burst);
+        if (onBubblePop) {
+          onBubblePop(hitBubble);
+        }
+      }
+    },
+    onPalmTap: (points) => {
+      if (points.length > 0) {
+        const avgX = points.reduce((acc, p) => acc + p.x, 0) / points.length;
+        const avgY = points.reduce((acc, p) => acc + p.y, 0) / points.length;
+        const megaBurst = spawnParticleBurst(avgX, avgY, 55);
+        particles.push(...megaBurst);
+      }
+    }
+  });
+
+  function handleContact(x: number, y: number): void {
+    const { hitBubble, remainingBubbles } = hitTestAndPop({ x, y }, bubbles);
+    if (hitBubble) {
+      bubbles = remainingBubbles;
+      const burst = spawnParticleBurst(hitBubble.x, hitBubble.y, 22);
+      particles.push(...burst);
+      if (onBubblePop) {
+        onBubblePop(hitBubble);
+      }
+    } else {
+      spawnInteractiveBubble(x, y);
+    }
+  }
+
   function handlePointerDown(e: PointerEvent): void {
-    if (!containerEl) return;
-    const rect = containerEl.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    spawnInteractiveBubble(x, y);
+    inputMultiplexer.handlePointerDown(e);
+  }
+
+  function handlePointerMove(e: PointerEvent): void {
+    inputMultiplexer.handlePointerMove(e);
+  }
+
+  function handlePointerUp(e: PointerEvent): void {
+    inputMultiplexer.handlePointerUp(e);
+  }
+
+  function handlePointerCancel(e: PointerEvent): void {
+    inputMultiplexer.handlePointerCancel(e);
   }
 
   onDestroy(() => {
     isDestroyed = true;
+    inputMultiplexer.detach();
     window.removeEventListener('resize', handleResize);
     if (app) {
       app.destroy(true, { children: true, texture: true });
@@ -349,6 +412,9 @@
   class="pixi-canvas-wrapper"
   bind:this={containerEl}
   onpointerdown={handlePointerDown}
+  onpointermove={handlePointerMove}
+  onpointerup={handlePointerUp}
+  onpointercancel={handlePointerCancel}
   role="presentation"
 ></div>
 

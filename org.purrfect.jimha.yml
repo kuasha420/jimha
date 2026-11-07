@@ -1,0 +1,46 @@
+app-id: org.purrfect.jimha
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node20
+command: jimha
+
+finish-args:
+  # Wayland & X11 display server access
+  - --socket=wayland
+  - --socket=fallback-x11
+  # Hardware accelerated graphics
+  - --device=all
+  # Low-latency PipeWire / PulseAudio access
+  - --socket=pulseaudio
+  # Inter-process communication
+  - --share=ipc
+  # KWin kiosk shortcut inhibition and window handover via D-Bus
+  - --talk-name=org.kde.KWin
+  - --talk-name=org.freedesktop.ScreenSaver
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node20/bin
+  env:
+    CARGO_HOME: /run/build/jimha/cargo
+
+modules:
+  - name: jimha
+    buildsystem: simple
+    build-commands:
+      - npm install -g pnpm
+      - pnpm install --frozen-lockfile
+      - pnpm build
+      - cargo build --manifest-path src-tauri/Cargo.toml --release
+      - install -Dm755 src-tauri/target/release/jimha /app/bin/jimha
+      - install -Dm644 org.purrfect.jimha.desktop /app/share/applications/org.purrfect.jimha.desktop
+      - install -Dm644 org.purrfect.jimha.metainfo.xml /app/share/metainfo/org.purrfect.jimha.metainfo.xml
+      - install -Dm644 assets/jimha.svg /app/share/icons/hicolor/scalable/apps/org.purrfect.jimha.svg
+      - install -Dm644 assets/jimha.png /app/share/icons/hicolor/512x512/apps/org.purrfect.jimha.png
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/org.purrfect.jimha.png
+      - install -Dm644 src-tauri/icons/32x32.png /app/share/icons/hicolor/32x32/apps/org.purrfect.jimha.png
+    sources:
+      - type: dir
+        path: .
