@@ -1,13 +1,98 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import PixiCanvas from './lib/components/PixiCanvas.svelte';
+  import ExitHoldHud from './lib/components/ExitHoldHud.svelte';
+  import ParentGateHud from './lib/components/ParentGateHud.svelte';
+  import VirtualSwitcher, { type WindowItem } from './lib/components/VirtualSwitcher.svelte';
   import { JimhaAudioManager } from './lib/audio/audio-manager';
+  import {
+    RekkaBuffer,
+    KONAMI_SEQUENCE,
+    QUICK_SWITCH_SEQUENCE,
+    NAVIGATOR_SEQUENCE,
+  } from './lib/engine/rekka';
   import { APP_NAME } from './lib/constants';
 
   let pixiCanvas: PixiCanvas | null = $state(null);
+  let switcherRef: VirtualSwitcher | null = $state(null);
   let audioManager: JimhaAudioManager | null = null;
   let touchCount = $state(0);
   let lastNoteName = $state('');
+
+  // ESC hold state (3.0s continuous hold)
+  let isEscPressed = $state(false);
+  let escStartTime = 0;
+  let escHoldProgress = $state(0.0);
+  let escRemainingSec = $state(3.0);
+
+  // Alt+Tab Parent Gate hold state (2.0s continuous hold)
+  let isAltTabPressed = $state(false);
+  let altPressed = false;
+  let tabPressed = false;
+  let altTabStartTime = 0;
+  let altTabHoldProgress = $state(0.0);
+  let altTabRemainingSec = $state(2.0);
+
+  // Rekka combo engine & Virtual Switcher
+  const rekka = new RekkaBuffer(0.8);
+  let virtualSwitcherActive = $state(false);
+  let virtualWindows = $state<WindowItem[]>([]);
+  let virtualIndex = $state(0);
+  let switcherLastActionTime = 0;
+
+  let animFrameId: number | null = null;
+
+  async function callTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
+    try {
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return await invoke<T>(cmd, args);
+      }
+    } catch (err) {
+      console.warn(`Tauri command ${cmd} invocation:`, err);
+    }
+    return null;
+  }
+
+  async function triggerDesktopHandover(targetId?: string) {
+    if (audioManager) {
+      audioManager.playKey('ENTER');
+    }
+    await callTauri('kiosk_handover', { targetId: targetId ?? null });
+    await callTauri('kiosk_minimize');
+  }
+
+  async function triggerKonamiHandover() {
+    if (pixiCanvas) {
+      pixiCanvas.triggerKey('👑 30 LIVES GRANTED! 🚀💖✨', '#FF4081');
+    }
+    if (audioManager) {
+      audioManager.playKey('ENTER');
+    }
+    setTimeout(() => {
+      void triggerDesktopHandover();
+    }, 600);
+  }
+
+  async function triggerQuickSwitchHandover() {
+    const wins = await callTauri<WindowItem[]>('kiosk_query_windows');
+    const target = wins && wins.length > 0 ? wins[0].id : undefined;
+    await triggerDesktopHandover(target);
+  }
+
+  async function openVirtualSwitcher() {
+    const wins = await callTauri<WindowItem[]>('kiosk_query_windows');
+    virtualWindows =
+      wins && wins.length > 0
+        ? wins
+        : [{ id: 'desktop', title: 'Desktop / Workspace', icon: 'user-desktop' }];
+    virtualIndex = 0;
+    virtualSwitcherActive = true;
+    switcherLastActionTime = performance.now();
+    if (audioManager) {
+      audioManager.playKey('ALT_TAB');
+    }
+  }
 
   function handleKeyTriggered(_title: string, _subtitle: string) {
     touchCount += 1;
@@ -22,11 +107,139 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    // Intercept default actions for game keys to prevent unwanted scroll or reload
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Backspace'].includes(event.code)) {
+    const isAlt = event.key === 'Alt';
+    const isTab = event.key === 'Tab';
+
+    if (isAlt) altPressed = true;
+    if (isTab) tabPressed = true;
+
+    // Prevent default actions for toddler-swallowed keys
+    if (
+      ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Backspace', 'Escape', 'F5', 'F11'].includes(
+        event.code
+      ) ||
+      (event.altKey && (event.key === 'F4' || event.key === 'Tab')) ||
+      (event.ctrlKey && ['w', 'W', 'q', 'Q', 'r', 'R'].includes(event.key))
+    ) {
       event.preventDefault();
     }
 
+    const isAltTab = (isTab && (event.altKey || altPressed)) || (isAlt && tabPressed);
+
+    // 1. Alt+Tab Continuous Hold Adult Gate
+    if (isAltTab) {
+      isEscPressed = false;
+      escHoldProgress = 0;
+      virtualSwitcherActive = false;
+      rekka.clear();
+
+      if (!isAltTabPressed) {
+        isAltTabPressed = true;
+        altTabStartTime = performance.now();
+        altTabHoldProgress = 0;
+        altTabRemainingSec = 2.0;
+        if (audioManager) {
+          audioManager.playKey('ALT_TAB');
+        }
+      }
+      return;
+    }
+
+    // Any non-Alt/Tab key interrupts Alt+Tab hold
+    if (!isAlt && !isTab) {
+      isAltTabPressed = false;
+      altTabHoldProgress = 0;
+      altPressed = false;
+      tabPressed = false;
+    }
+
+    // 2. Active Virtual Switcher key handling
+    if (virtualSwitcherActive) {
+      switcherLastActionTime = performance.now();
+
+      if (event.key === 'Escape') {
+        virtualSwitcherActive = false;
+        rekka.clear();
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        virtualSwitcherActive = false;
+        switcherRef?.commitSelection();
+        return;
+      }
+
+      if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+        switcherRef?.cycleNext();
+        rekka.add(event.key === 'ArrowRight' ? 'RIGHT' : 'DOWN');
+        if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+          virtualSwitcherActive = false;
+          void triggerQuickSwitchHandover();
+        }
+        return;
+      }
+
+      if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+        switcherRef?.cyclePrev();
+        rekka.add(event.key === 'ArrowLeft' ? 'LEFT' : 'UP');
+        return;
+      }
+
+      const upper = event.key.toUpperCase();
+      if (upper === 'B' || upper === 'A') {
+        rekka.add(upper);
+        if (rekka.matches(KONAMI_SEQUENCE)) {
+          virtualSwitcherActive = false;
+          void triggerKonamiHandover();
+        }
+        return;
+      }
+
+      // Any other key closes virtual switcher
+      virtualSwitcherActive = false;
+      rekka.clear();
+    }
+
+    // 3. Escape Hold Exit Protection (3.0s continuous hold)
+    if (event.key === 'Escape') {
+      if (!isEscPressed) {
+        isEscPressed = true;
+        escStartTime = performance.now();
+        escHoldProgress = 0;
+        escRemainingSec = 3.0;
+      }
+      return;
+    }
+
+    // Regular keypress interrupts Escape hold
+    isEscPressed = false;
+    escHoldProgress = 0;
+
+    // 4. Rekka Arcade Combo Buffer Processing
+    let token = event.key.toUpperCase();
+    if (event.key === 'ArrowUp') token = 'UP';
+    else if (event.key === 'ArrowDown') token = 'DOWN';
+    else if (event.key === 'ArrowLeft') token = 'LEFT';
+    else if (event.key === 'ArrowRight') token = 'RIGHT';
+
+    rekka.add(token);
+
+    if (rekka.matches(KONAMI_SEQUENCE)) {
+      void triggerKonamiHandover();
+      return;
+    }
+
+    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+      void triggerQuickSwitchHandover();
+      return;
+    }
+
+    if (rekka.matches(NAVIGATOR_SEQUENCE)) {
+      void openVirtualSwitcher();
+      return;
+    }
+
+    // 5. Normal Game Audio and Pixi Canvas Dispatch
     if (audioManager) {
       const selection = audioManager.playKey(event.key);
       lastNoteName = selection.noteName;
@@ -37,9 +250,68 @@
     }
   }
 
+  function handleKeyUp(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      isEscPressed = false;
+      escHoldProgress = 0;
+    }
+
+    if (event.key === 'Alt') {
+      altPressed = false;
+      isAltTabPressed = false;
+      altTabHoldProgress = 0;
+    }
+
+    if (event.key === 'Tab') {
+      tabPressed = false;
+      isAltTabPressed = false;
+      altTabHoldProgress = 0;
+    }
+  }
+
+  function tick() {
+    const now = performance.now();
+
+    // Check ESC hold
+    if (isEscPressed) {
+      const elapsed = (now - escStartTime) / 1000;
+      escHoldProgress = Math.min(1.0, elapsed / 3.0);
+      escRemainingSec = Math.max(0.0, 3.0 - elapsed);
+      if (escHoldProgress >= 1.0) {
+        isEscPressed = false;
+        void callTauri('kiosk_close');
+      }
+    }
+
+    // Check Alt+Tab hold
+    if (isAltTabPressed) {
+      const elapsed = (now - altTabStartTime) / 1000;
+      altTabHoldProgress = Math.min(1.0, elapsed / 2.0);
+      altTabRemainingSec = Math.max(0.0, 2.0 - elapsed);
+      if (altTabHoldProgress >= 1.0) {
+        isAltTabPressed = false;
+        void triggerDesktopHandover();
+      }
+    }
+
+    // Virtual Switcher idle timeout (15s)
+    if (virtualSwitcherActive && now - switcherLastActionTime > 15000) {
+      virtualSwitcherActive = false;
+    }
+
+    rekka.checkDecay(Date.now() / 1000);
+
+    animFrameId = requestAnimationFrame(tick);
+  }
+
   onMount(() => {
     audioManager = new JimhaAudioManager();
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    void callTauri('kiosk_inhibit_shortcuts');
+
+    animFrameId = requestAnimationFrame(tick);
 
     // Initial warm-up on first user interaction
     const unlockAudio = () => {
@@ -53,6 +325,10 @@
 
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+    if (animFrameId !== null) {
+      cancelAnimationFrame(animFrameId);
+    }
     if (audioManager) {
       audioManager.close();
       audioManager = null;
@@ -66,6 +342,29 @@
     onBubblePop={handleBubblePop}
     onKeyTriggered={handleKeyTriggered}
   />
+
+  {#if isEscPressed || escHoldProgress > 0}
+    <ExitHoldHud progress={escHoldProgress} remainingSec={escRemainingSec} />
+  {/if}
+
+  {#if isAltTabPressed || altTabHoldProgress > 0}
+    <ParentGateHud progress={altTabHoldProgress} remainingSec={altTabRemainingSec} />
+  {/if}
+
+  {#if virtualSwitcherActive}
+    <VirtualSwitcher
+      bind:this={switcherRef}
+      windows={virtualWindows}
+      bind:selectedIndex={virtualIndex}
+      onSelect={(id) => {
+        virtualSwitcherActive = false;
+        void triggerDesktopHandover(id);
+      }}
+      onClose={() => {
+        virtualSwitcherActive = false;
+      }}
+    />
+  {/if}
 
   <header class="hud-header">
     <div class="hud-pill brand-pill">

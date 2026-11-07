@@ -35,4 +35,6 @@ pkg/
 # Agent artifacts bridge
 .agents/artifacts
 .agents/teamwork/
+data/
+*.db
 
