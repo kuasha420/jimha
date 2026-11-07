@@ -1,15 +1,27 @@
-# Python build artifacts
+# Dependencies
+node_modules/
+pnpm-debug.log*
+
+# Tauri & Rust build artifacts
+target/
+src-tauri/target/
+src-tauri/gen/
+
+# Frontend build artifacts
+dist/
+dist-ssr/
+*.local
+
+# Python legacy build artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-dist/
 build/
 *.egg-info/
 .eggs/
 
-# Arch Linux packaging artifacts
-src/
+# Arch Linux packaging artifacts (prevent ignoring src/)
 pkg/
 *.pkg.tar.*
 *.tar.gz
@@ -23,3 +35,4 @@ pkg/
 # Agent artifacts bridge
 .agents/artifacts
 .agents/teamwork/
+

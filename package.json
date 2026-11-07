@@ -1,0 +1,30 @@
+{
+  "name": "jimha",
+  "version": "2.0.0",
+  "description": "Next-Gen Adaptive Sensory Playground for Toddlers",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "tauri": "tauri",
+    "test": "vitest run"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-opener": "^2.7.2",
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tauri-apps/cli": "^2.12.4",
+    "happy-dom": "^21.0.4",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.6.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,14 +1,16 @@
 <div align="center">
 
-<img src="assets/jimha.png" width="160" height="160" alt="JimHa's Key Smash Logo" />
+<img src="assets/jimha.png" width="160" height="160" alt="Jimha Logo" />
 
-# JimHa's Magical Key Smash Game 👑💖✨
+# Jimha 👑💖✨
 
-**A toddler-safe, fullscreen interactive wonderland designed for tactile exploration.**
+**Next-Gen Adaptive Sensory Playground for Toddlers**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Arch Linux](https://img.shields.io/badge/Arch_Linux-PKGBUILD_Ready-1793d1.svg?logo=arch-linux)](PKGBUILD)
-[![Platform: Linux / Wayland](https://img.shields.io/badge/Platform-Linux%20%2F%20Wayland-2A3439.svg?logo=linux)](https://github.com/kuasha420/jimha)
+[![Tauri v2](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri)](https://tauri.app)
+[![Svelte 5](https://img.shields.io/badge/Svelte-5_Runes-FF3E00.svg?logo=svelte)](https://svelte.dev)
+[![Pixi.js v8](https://img.shields.io/badge/Pixi.js-v8-E72264.svg?logo=pixijs)](https://pixijs.com)
+[![Platform: Multiplatform](https://img.shields.io/badge/Platform-Multiplatform-2A3439.svg)](https://github.com/kuasha420/jimha)
 [![Knot Mesh Compatible](https://img.shields.io/badge/Knot_Mesh-Integrated-FF4081.svg)](https://github.com/kuasha420/knot-mesh)
 
 </div>
@@ -22,7 +24,7 @@
 <td width="65%" valign="top">
 
 <!-- Steam Hero Animated Trailer / Banner -->
-<img src="assets/demo_preview.gif" alt="JimHa Animated Gameplay Trailer" width="100%" />
+<img src="assets/demo_preview.gif" alt="Jimha Animated Gameplay Trailer" width="100%" />
 
 <p align="center">
   🎬 <b>Live Gameplay Trailer:</b> <i>Bouncing letters, particle fireworks, pentatonic chimes & 3s hold-to-exit HUD</i>
@@ -34,14 +36,14 @@
 <td width="35%" valign="top">
 
 ### 🕹️ Game Overview
-*Smash any button, paint the universe!* A gentle, toddler-proof sensory playground crafted with love for JimHa.
+*Smash any button, paint the universe!* A gentle, toddler-proof sensory playground crafted with love for Jimha.
 
 - **Reviews**: ⭐⭐⭐⭐⭐ *Overwhelmingly Positive* (100% Toddler & Baby Approved 💖)
-- **Release Date**: Sep 29, 2026
-- **Developer**: Arafat Zahan *(with JimHa & AI Agent)*
+- **Engine**: Tauri v2 + Pixi.js v8 + Svelte 5 + Rust
+- **Developer**: Arafat Zahan *(with Jimha & AI Agent)*
 - **Publisher**: Purrfect Universe
-- **Audio Engine**: Zero-Dependency Pentatonic Chimes
-- **Display Target**: Wayland / X11 Fullscreen 60 FPS
+- **Audio Engine**: Web Audio API Synthesizer (Zero GC)
+- **Display Target**: Wayland / X11 / SteamOS Fullscreen 60–120 FPS
 - **Tags**: `Casual` • `Kids` • `Tactile` • `Sensory` • `Toddler-Safe` • `Music-Box`
 
 </td>
@@ -53,8 +55,8 @@
 <table>
 <tr>
 <td width="50%">
-  <img src="assets/screenshot_2_jimha_crown.png" alt="J is for JimHa!" width="100%" />
-  <p align="center"><b>👑 J is for JimHa!</b><br><i>Spring bounce with royal crown & electric confetti</i></p>
+  <img src="assets/screenshot_2_jimha_crown.png" alt="J is for Jimha!" width="100%" />
+  <p align="center"><b>👑 J is for Jimha!</b><br><i>Spring bounce with royal crown & electric confetti</i></p>
 </td>
 <td width="50%">
   <img src="assets/screenshot_3_easter_egg.png" alt="Jim Heart Easter Egg" width="100%" />
@@ -77,13 +79,13 @@
 
 ## 📖 The Origin Story
 
-**JimHa's Key Smash Game** was born during JimHa's very first **agentic pair programming session**. 
+**Jimha** was born during Jimha's very first **agentic pair programming session**. 
 
-Sitting with a Steam Deck handheld running Arch Linux, her father gave a simple, loving challenge to an autonomous AI agent: create a magical visual playground for JimHa that reacts to any random keyboard smash with giant bouncing characters, colorful companion emojis, and soothing sounds — without letting curious little hands accidentally close the game.
+Sitting with a Steam Deck handheld running Arch Linux, her father gave a simple, loving challenge to an autonomous AI agent: create a magical visual playground for Jimha that reacts to any random keyboard smash with giant bouncing characters, colorful companion emojis, and soothing sounds — without letting curious little hands accidentally close the game.
 
-Because the command originated from a handheld device, the entire prototype was orchestrated across the [**Knot Mesh**](https://github.com/kuasha420/knot-mesh) — projecting and running live in fullscreen on the Desktop PC monitor across the room in real time.
+Because the command originated from a handheld device, the prototype was orchestrated across the [**Knot Mesh**](https://github.com/kuasha420/knot-mesh) — projecting and running live in fullscreen on the Desktop PC monitor across the room in real time.
 
-Today, **JimHa** is packaged as a standalone, production-ready desktop game for all Linux users, while proudly preserving its Knot Mesh multi-device origin.
+Today, **Jimha** has evolved into a next-generation sensory game engine powered by **Tauri v2**, **Pixi.js v8**, **Svelte 5**, and a **Rust** backend, while the original Python prototype is safely preserved in [`legacy/python_prototype/`](legacy/python_prototype/).
 
 ---
 
@@ -91,7 +93,7 @@ Today, **JimHa** is packaged as a standalone, production-ready desktop game for 
 
 - **🎮 Giant Responsive Key Animations**: Every key press triggers massive typography scaling with elastic spring physics, radiant glowing halos, and vibrant pastel-neon palettes.
 - **🦄 Alphabet & Companion Emojis**:
-  - **`J`**: 👑 **JimHa!** ✨
+  - **`J`**: 👑 **Jimha!** ✨
   - **`H`**: 💖 **Jim Heart (Easter Egg!)** 💖
   - **`A`–`Z`**: 🍎 Apple, 🦋 Butterfly, 🐱 Cat, 🐶 Dog, 🐘 Elephant, 🌸 Flower, 🎸 Guitar...
   - **`0`–`9`**: Huge digits accompanied by that exact number of glittering stars.
@@ -99,88 +101,52 @@ Today, **JimHa** is packaged as a standalone, production-ready desktop game for 
   - **`Enter`**: 🎉 Party celebration balloons and confetti!
   - **`Backspace`**: 🫧 Bubble pop flurry!
   - **`Arrow Keys`**: 🚀 Directional zoom and dive effects!
-- **🫧 Touch & Mouse Interaction**: Tapping the screen or clicking spawns floating, translucent bubbles that rise and can be popped.
-- **🎵 Soothing Pentatonic Chimes**: Built-in sound synthesis engine (using Python standard library `wave` and `math` with zero external audio dependencies). Plays celestial celesta/bell notes across an 11-tone pentatonic scale (C4–C6). Rapid smashing sounds like a melodious wind chime, never dissonant.
+- **🫧 Multi-Touch & Pointer Interaction**: Multi-finger drumming and palm taps spawn floating, translucent bubbles that rise and pop.
+- **🎵 Soothing Pentatonic Chimes**: Real-time celestial celesta and bell synthesis across an 11-tone pentatonic scale (C4–C6). Rapid smashing sounds like a melodious wind chime, never dissonant.
 - **🛡️ Toddler-Safe Exit Protection (3-Second ESC Hold)**: Accidental hits on `Escape` will **not** close the game. To exit, a parent must hold `Escape` continuously for 3.0 seconds. A circular HUD countdown overlay displays progress and immediately cancels if released early.
-- **⚡ Wayland & Hardware Accelerated**: Built on PyQt6 with native Wayland support (`QT_QPA_PLATFORM=wayland`) and intelligent idle framerate scaling (60 FPS active, 30 FPS resting) to preserve battery and GPU cycles.
+- **⚡ Native Hardware Acceleration**: 60–120 FPS high-refresh rate canvas rendering powered by Pixi.js v8 and WebGL/WebGPU.
 
 ---
 
-## 📦 Installation
+## 🚀 Development & Verification
 
-### Arch Linux / SteamOS (Desktop Mode)
+### Prerequisites
+- Node.js >= 20, pnpm >= 9
+- Rust >= 1.78 and Cargo
 
-You can build and install using the included `PKGBUILD`:
-
+### Install Dependencies
 ```bash
-# Clone the repository
-git clone https://github.com/kuasha420/jimha.git
-cd jimha
-
-# Build and install package
-makepkg -si
+pnpm install
 ```
 
-This installs:
-- Binary: `/usr/bin/jimha`
-- Desktop Entry: `/usr/share/applications/jimha.desktop` (visible in KDE/GNOME/Steam application menus)
-- App Icon: `/usr/share/icons/hicolor/scalable/apps/jimha.svg` and `512x512/apps/jimha.png`
-
-### Standard Python / Manual Installation
-
+### Run Frontend in Development
 ```bash
-# Clone the repository
-git clone https://github.com/kuasha420/jimha.git
-cd jimha
-
-# Install dependencies
-pip install PyQt6
-
-# Install locally
-pip install .
+pnpm dev
 ```
 
----
-
-## 🚀 Usage
-
-### Run from App Menu
-Look for **JimHa's Key Smash** in your desktop application launcher under **Games**.
-
-### Run from Terminal
-
+### Run Desktop Application (Tauri v2)
 ```bash
-# Launch in Fullscreen (Default)
-jimha
-
-# Launch in Windowed mode (for debugging)
-jimha --windowed
-
-# Launch with sound muted
-jimha --no-audio
+pnpm tauri dev
 ```
 
-### 🪢 Knot Mesh Remote Launch
-
-If you run the [Knot Mesh](https://github.com/kuasha420/knot-mesh) multi-device fabric across your home:
+### Hermetic Verification Suite
+Run the unified frontend and native backend verification suites:
 
 ```bash
-# Launch remotely on Desktop PC from Steam Deck or Laptop
-jimha --mesh-target desktop
+# Frontend Vitest suite (sub-second SLA)
+pnpm test
+
+# Rust native backend test suite
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ---
 
-## 🧪 Testing
-
-Run the automated test suite in headless mode:
-
-```bash
-QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests
-```
+## 📦 Legacy Prototype
+The original Python/PyQt6 prototype and its build artifacts are archived under [`legacy/python_prototype/`](legacy/python_prototype/).
 
 ---
 
 ## 📄 License
 
-Released under the [MIT License](LICENSE). Dedicated with love to JimHa. 💖
+Released under the [MIT License](LICENSE). Dedicated with love to Jimha. 💖
