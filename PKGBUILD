@@ -31,7 +31,11 @@ package() {
   fi
 
   # Binary installation
-  install -Dm755 src-tauri/target/release/jimha "$pkgdir/usr/bin/jimha"
+  if [ -f target/release/jimha ]; then
+    install -Dm755 target/release/jimha "$pkgdir/usr/bin/jimha"
+  else
+    install -Dm755 src-tauri/target/release/jimha "$pkgdir/usr/bin/jimha"
+  fi
 
   # Desktop & Metainfo integration
   install -Dm644 org.purrfect.jimha.desktop "$pkgdir/usr/share/applications/org.purrfect.jimha.desktop"

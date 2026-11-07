@@ -80,12 +80,17 @@ describe('InputMultiplexer Unit & Contract Tests', () => {
     // 3 contacts within 40ms -> Palm tap!
     mux.handlePointerDown({ pointerId: 1, clientX: 200, clientY: 200 }, 1000);
     mux.handlePointerDown({ pointerId: 2, clientX: 220, clientY: 210 }, 1020);
+    expect(mux.getActiveCount()).toBe(2);
     expect(onPalm).not.toHaveBeenCalled();
 
     mux.handlePointerDown({ pointerId: 3, clientX: 240, clientY: 230 }, 1040);
+    expect(mux.getActiveCount()).toBe(3);
     expect(onPalm).toHaveBeenCalledTimes(1);
     const touchesPassed = onPalm.mock.calls[0][0];
     expect(touchesPassed.length).toBe(3);
+    expect(touchesPassed[0].id).toBe(1);
+    expect(touchesPassed[1].id).toBe(2);
+    expect(touchesPassed[2].id).toBe(3);
   });
 
   it('does not trigger palm tap when contacts are too far apart in time', () => {
@@ -97,9 +102,11 @@ describe('InputMultiplexer Unit & Contract Tests', () => {
     });
 
     mux.handlePointerDown({ pointerId: 1, clientX: 200, clientY: 200 }, 1000);
-    mux.handlePointerDown({ pointerId: 2, clientX: 220, clientY: 210 }, 1150); // > 80ms later
-    mux.handlePointerDown({ pointerId: 3, clientX: 240, clientY: 230 }, 1300); // > 80ms later
+    mux.handlePointerDown({ pointerId: 2, clientX: 220, clientY: 210 }, 1150);
+    mux.handlePointerDown({ pointerId: 3, clientX: 240, clientY: 230 }, 1300);
 
+    expect(mux.getActiveCount()).toBe(3);
+    expect(mux.getActiveTouches().map((t) => t.id)).toEqual([1, 2, 3]);
     expect(onPalm).not.toHaveBeenCalled();
   });
 
@@ -111,17 +118,23 @@ describe('InputMultiplexer Unit & Contract Tests', () => {
     });
 
     mux.handlePointerDown({ pointerId: 1, clientX: 100, clientY: 100 }, 1000);
+    expect(mux.getActiveCount()).toBe(1);
     expect(onDrum).not.toHaveBeenCalled();
 
     // Second tap 80ms later -> drum beat!
     mux.handlePointerDown({ pointerId: 2, clientX: 150, clientY: 100 }, 1080);
+    expect(mux.getActiveCount()).toBe(2);
     expect(onDrum).toHaveBeenCalledTimes(1);
-    expect(onDrum).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }), 80);
+    const drumCalls = onDrum.mock.calls;
+    expect(drumCalls[0][0].id).toBe(2);
+    expect(drumCalls[0][1]).toBe(80);
 
     // Third tap 90ms later -> drum beat!
     mux.handlePointerDown({ pointerId: 3, clientX: 200, clientY: 100 }, 1170);
+    expect(mux.getActiveCount()).toBe(3);
     expect(onDrum).toHaveBeenCalledTimes(2);
-    expect(onDrum).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }), 90);
+    expect(drumCalls[1][0].id).toBe(3);
+    expect(drumCalls[1][1]).toBe(90);
   });
 
   describe('Bubble Hit-Testing & Multi-Pop', () => {

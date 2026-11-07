@@ -42,7 +42,7 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(onConnected).toHaveBeenCalledWith(0, expect.stringContaining('Steam Deck'));
     expect(onButtonDown).not.toHaveBeenCalled();
 
-    // Frame 2: Button A (idx 0) is pressed
+    // Frame 2: Button A with index 0 is pressed
     gm.poll([createMockGamepad(0, [0])]);
     expect(gm.isButtonPressed(0, 'A')).toBe(true);
     expect(onButtonDown).toHaveBeenCalledTimes(1);
@@ -130,18 +130,18 @@ describe('GamepadManager Unit & Contract Tests', () => {
       onButtonUp,
     });
 
-    // 1. Minor drift below deadzone (0.15) -> ignored
+    // 1. Minor drift below deadzone: 0.15 is ignored
     gm.poll([createMockGamepad(0, [], [0.15, -0.18])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(false);
     expect(gm.isVirtualAxisEngaged(0, 'UP')).toBe(false);
     expect(onButtonDown).not.toHaveBeenCalled();
 
-    // 2. Partial deflection below engagement threshold (0.40) -> still not engaged
+    // 2. Partial deflection below engagement threshold: 0.40 still not engaged
     gm.poll([createMockGamepad(0, [], [0.40, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(false);
     expect(onButtonDown).not.toHaveBeenCalled();
 
-    // 3. Deflection reaching engagement threshold (0.60) -> engaged!
+    // 3. Deflection reaching engagement threshold: 0.60 engages
     gm.poll([createMockGamepad(0, [], [0.60, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(true);
     expect(onButtonDown).toHaveBeenCalledTimes(1);
@@ -150,12 +150,12 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(downEvent.pressed).toBe(true);
     expect(downEvent.value).toBe(0.60);
 
-    // 4. Slight stick relaxation to 0.35 (> deadzone 0.25) -> hysteresis holds engagement!
+    // 4. Slight stick relaxation to 0.35: hysteresis holds engagement
     gm.poll([createMockGamepad(0, [], [0.35, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(true);
     expect(onButtonUp).not.toHaveBeenCalled();
 
-    // 5. Stick returned to neutral / below deadzone (0.10) -> released!
+    // 5. Stick returned to neutral at 0.10: released
     gm.poll([createMockGamepad(0, [], [0.10, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(false);
     expect(onButtonUp).toHaveBeenCalledTimes(1);
@@ -174,7 +174,7 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(gm.isConnected(0)).toBe(true);
     expect(gm.getConnectedCount()).toBe(1);
 
-    // Disconnect (null entry)
+    // Disconnect when snapshot entry is null
     gm.poll([null]);
     expect(gm.isConnected(0)).toBe(false);
     expect(gm.getConnectedCount()).toBe(0);
