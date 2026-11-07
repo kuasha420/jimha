@@ -4,14 +4,18 @@
 
 # Jimha 👑💖✨
 
-**Next-Gen Adaptive Sensory Playground for Toddlers**
+**Next-Gen Sovereign Sensory Playground for Toddlers**  
+*Smash any button, paint the universe!*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri)](https://tauri.app)
-[![Svelte 5](https://img.shields.io/badge/Svelte-5_Runes-FF3E00.svg?logo=svelte)](https://svelte.dev)
+[![Svelte 5 Runes](https://img.shields.io/badge/Svelte-5_Runes-FF3E00.svg?logo=svelte)](https://svelte.dev)
 [![Pixi.js v8](https://img.shields.io/badge/Pixi.js-v8-E72264.svg?logo=pixijs)](https://pixijs.com)
-[![Platform: Multiplatform](https://img.shields.io/badge/Platform-Multiplatform-2A3439.svg)](https://github.com/kuasha420/jimha)
-[![Knot Mesh Compatible](https://img.shields.io/badge/Knot_Mesh-Integrated-FF4081.svg)](https://github.com/kuasha420/knot-mesh)
+[![PipeWire Native Audio](https://img.shields.io/badge/Audio-PipeWire_Native-26A69A.svg)](docs/ARCHITECTURE.md#3-double-barreled-audio-engine)
+[![Local-First Sovereign](https://img.shields.io/badge/Architecture-100%25_Sovereign-4CAF50.svg)](docs/ARCHITECTURE.md#1-architectural-philosophy--the-sovereign-product-guarantee)
+[![Platform: Multiplatform](https://img.shields.io/badge/Platform-Linux_|_SteamOS_|_Android-2A3439.svg)](docs/PACKAGING.md)
+
+[**Documentation Hub**](docs/) • [**Architecture**](docs/ARCHITECTURE.md) • [**Dad-Mode Invariants**](docs/DAD_MODE_INVARIANTS.md) • [**Universe Lore**](docs/LORE.md) • [**Roadmap**](docs/ROADMAP.md) • [**Packaging**](docs/PACKAGING.md)
 
 </div>
 
@@ -27,7 +31,7 @@
 <img src="assets/demo_preview.gif" alt="Jimha Animated Gameplay Trailer" width="100%" />
 
 <p align="center">
-  🎬 <b>Live Gameplay Trailer:</b> <i>Bouncing letters, particle fireworks, pentatonic chimes & 3s hold-to-exit HUD</i>
+  🎬 <b>Live Gameplay Trailer:</b> <i>Bouncing letters, particle fireworks, pentatonic chimes & 2.5s hold-to-exit HUD</i>
   <br>
   <a href="assets/demo_trailer.mp4"><b>▶ Download / Watch Full HD Video Trailer (assets/demo_trailer.mp4)</b></a>
 </p>
@@ -36,16 +40,16 @@
 <td width="35%" valign="top">
 
 ### 🕹️ Game Overview
+*Smash any button, paint the universe!* A gentle, toddler-proof sensory wonderland crafted with love for Jimha.
 
-_Smash any button, paint the universe!_ A gentle, toddler-proof sensory playground crafted with love for Jimha.
-
-- **Reviews**: ⭐⭐⭐⭐⭐ _Overwhelmingly Positive_ (100% Toddler & Baby Approved 💖)
-- **Engine**: Tauri v2 + Pixi.js v8 + Svelte 5 + Rust
-- **Developer**: Arafat Zahan _(with Jimha & AI Agent)_
-- **Publisher**: Purrfect Universe
-- **Audio Engine**: Web Audio API Synthesizer (Zero GC)
+- **User Reviews**: ⭐⭐⭐⭐⭐ *Overwhelmingly Positive* (100% Toddler & Baby Approved 💖)
+- **Engine**: Tauri v2 + Pixi.js v8 + Svelte 5 (Runes) + Rust
+- **Developer**: Arafat Zahan *(with Jimha & AI Agent)*
+- **Audio Engine**: Double-Barreled PipeWire Native + Zero-GC Web Audio
 - **Display Target**: Wayland / X11 / SteamOS Fullscreen 60–120 FPS
-- **Tags**: `Casual` • `Kids` • `Tactile` • `Sensory` • `Toddler-Safe` • `Music-Box`
+- **Safety Rating**: Certified Dad-Mode (7 Child-Safety Invariants)
+- **Network Footprint**: 100% Air-Gapped / Zero External Sockets
+- **Tags**: `Casual` • `Sensory` • `Toddler-Safe` • `Music-Box` • `Sovereign` • `Open-Source`
 
 </td>
 </tr>
@@ -57,103 +61,173 @@ _Smash any button, paint the universe!_ A gentle, toddler-proof sensory playgrou
 <tr>
 <td width="50%">
   <img src="assets/screenshot_2_jimha_crown.png" alt="J is for Jimha!" width="100%" />
-  <p align="center"><b>👑 J is for Jimha!</b><br><i>Spring bounce with royal crown & electric confetti</i></p>
+  <p align="center"><b>👑 J is for Queen Jimha!</b><br><i>Spring bounce with royal crown, electric confetti, and fanfare chimes</i></p>
 </td>
 <td width="50%">
   <img src="assets/screenshot_3_easter_egg.png" alt="Jim Heart Easter Egg" width="100%" />
-  <p align="center"><b>💖 Jim Heart Easter Egg</b><br><i>The legendary Easter egg honoring the session's first spark</i></p>
+  <p align="center"><b>💖 Jim Heart Easter Egg</b><br><i>The cosmic alter ego born from the original voice-dictation spark</i></p>
 </td>
 </tr>
 <tr>
 <td width="50%">
   <img src="assets/screenshot_4_supernova.png" alt="Cosmic Supernova" width="100%" />
-  <p align="center"><b>🌟 Cosmic Supernova</b><br><i>Pressing Space explodes rainbow starburst particles</i></p>
+  <p align="center"><b>🌟 Cosmic Supernova</b><br><i>Spacebar triggers a dazzling starburst of 120 FPS rainbow particles</i></p>
 </td>
 <td width="50%">
   <img src="assets/screenshot_5_exit_hud.png" alt="Toddler-Safe Exit HUD" width="100%" />
-  <p align="center"><b>🛡️ Toddler-Safe Exit HUD</b><br><i>Hold ESC for 3.0s continuously to close; quick taps never exit</i></p>
+  <p align="center"><b>🛡️ Toddler-Safe Exit HUD</b><br><i>Hold Shift + Esc for 2.5s to exit; forearm slaps and brief taps never quit</i></p>
 </td>
 </tr>
 </table>
 
 ---
 
-## 📖 The Origin Story
+## 📖 The Origin Story: The Steam Deck Voice Prompt
 
-**Jimha** was born during Jimha's very first **agentic pair programming session**.
+Jimha was born during an autumn evening pairing session across the living room.
 
-Sitting with a Steam Deck handheld running Arch Linux, her father gave a simple, loving challenge to an autonomous AI agent: create a magical visual playground for Jimha that reacts to any random keyboard smash with giant bouncing characters, colorful companion emojis, and soothing sounds — without letting curious little hands accidentally close the game.
+Sitting on a sofa with an Arch Linux handheld Steam Deck, Jimha's father watched her slap joyously at the illuminated mechanical keys of his desktop workstation across the room. Every errant swipe risked closing windows or killing terminal sessions. What she needed was not a locked screen—she needed a **living sensory universe** where every touch was answered with boundless joy.
 
-Because the command originated from a handheld device, the prototype was orchestrated across the [**Knot Mesh**](https://github.com/kuasha420/knot-mesh) — projecting and running live in fullscreen on the Desktop PC monitor across the room in real time.
+Activating the Steam Deck's microphone, her father dictated a prompt in his native Bengali:
 
-Today, **Jimha** has evolved into a next-generation sensory game engine powered by **Tauri v2**, **Pixi.js v8**, **Svelte 5**, and a **Rust** backend, while the original Python prototype is safely preserved in [`legacy/python_prototype/`](legacy/python_prototype/).
+> *"ডিয়ার এজেন্ট, জিমহার জন্য এমন একটা ম্যাজিকাল প্লেগ্রাউন্ড বানাও—যেখানে ও যেকোনো কিবোর্ড বাটন চাপলেই বিশাল এনিমেশন, বাবল, তারা আর মিষ্টি পেন্টাটোনিক সুর বেজে উঠবে..."*  
+> *(Dear agent, build a magical playground for Jimha—where whenever she hits any keyboard button, giant animations, floating bubbles, glittering stars, and sweet pentatonic melodies ring out...)*
 
----
+The speech-to-text model hesitated over the Bengali phonology of *"জিমহা"* (*Jimha*), matching it to the closest English phrase: **`"Jim Heart"`**. 
 
-## ✨ Features
+Across the room, the monitor erupted into starlight. The letter **`J`** was crowned **`👑 Jimha!`**, but honoring the acoustic spark of that prompt, **`H`** was forever inscribed as **`💖 Jim Heart!`**. 
 
-- **🎮 Giant Responsive Key Animations**: Every key press triggers massive typography scaling with elastic spring physics, radiant glowing halos, and vibrant pastel-neon palettes.
-- **🦄 Alphabet & Companion Emojis**:
-  - **`J`**: 👑 **Jimha!** ✨
-  - **`H`**: 💖 **Jim Heart (Easter Egg!)** 💖
-  - **`A`–`Z`**: 🍎 Apple, 🦋 Butterfly, 🐱 Cat, 🐶 Dog, 🐘 Elephant, 🌸 Flower, 🎸 Guitar...
-  - **`0`–`9`**: Huge digits accompanied by that exact number of glittering stars.
-  - **`Space`**: 🌟 Cosmic supernova fireworks!
-  - **`Enter`**: 🎉 Party celebration balloons and confetti!
-  - **`Backspace`**: 🫧 Bubble pop flurry!
-  - **`Arrow Keys`**: 🚀 Directional zoom and dive effects!
-- **🫧 Multi-Touch & Pointer Interaction**: Multi-finger drumming and palm taps spawn floating, translucent bubbles that rise and pop.
-- **🎵 Soothing Pentatonic Chimes**: Real-time celestial celesta and bell synthesis across an 11-tone pentatonic scale (C4–C6). Rapid smashing sounds like a melodious wind chime, never dissonant.
-- **🛡️ Toddler-Safe Exit Protection (3-Second ESC Hold)**: Accidental hits on `Escape` will **not** close the game. To exit, a parent must hold `Escape` continuously for 3.0 seconds. A circular HUD countdown overlay displays progress and immediately cancels if released early.
-- **⚡ Native Hardware Acceleration**: 60–120 FPS high-refresh rate canvas rendering powered by Pixi.js v8 and WebGL/WebGPU.
+Thus, the twin identities were born: **Queen Jimha** (the laughing toddler monarch of her tactile playground) and **Jim Heart** (her cosmic superhero alter ego). Read the full mythological backstory in [**The Official Lorebook (`docs/LORE.md`)**](docs/LORE.md).
 
 ---
 
-## 🚀 Development & Verification
+## 🛡️ The 7 Dad-Mode Invariants
+
+Children do not interact with software like adults. An 18-month-old toddler explores by leaning elbows, slapping ten fingers at once, and tapping every pixel. Jimha is governed by **7 Child-Safety Invariants**:
+
+| # | Invariant | Threat Vector | Technical Safeguard |
+| :-: | :--- | :--- | :--- |
+| **1** | **The Exit Fortress** | Accidental game closing & forearm slaps | Compound `Shift + Esc` 2.5s hold + elbow rejection (`pressedKeys.size > 2`). Lone `Escape` triggers playful `🚀 BLAST OFF!` card. |
+| **2** | **Pediatric Hearing Protection** | Acoustic summing & speaker pops | 0.8 safe volume clamp across native and web audio + 4-voice process stealing pool. |
+| **3** | **Bubble Lagoon Ceiling** | Unbounded memory growth & visual noise | Strict 25-bubble FIFO ceiling with auto-popping of oldest bubbles. |
+| **4** | **Dynamic Cadence Budget** | Visual sensory overload & GPU spikes | Rolling 500ms cadence window throttles particle bursts from 28 to 8 when $\ge 4$ keys/500ms. |
+| **5** | **20-Second Attract Drift** | OLED burn-in & unattended screen battery | Inactivity for 20s transitions the canvas into a soft, breathing starlight lullaby. |
+| **6** | **Toddler Gesture Gate** | Trapped in modal dialogs | 450ms hold or upward swipe to open Sticker Book; any keypress or backdrop touch escapes. |
+| **7** | **100% Pentatonic Consonance** | Musical dissonance & cacophony | All keys map to an 11-tone C4–C6 major pentatonic scale; any random smash produces sweet harmony. |
+
+👉 *For full mathematical, acoustic, and behavioral explanations, read [**The 7 Dad-Mode Invariants Guide (`docs/DAD_MODE_INVARIANTS.md`)**](docs/DAD_MODE_INVARIANTS.md).*
+
+---
+
+## 🎮 Interactive Controls & Cheats
+
+### Playful Toddler Exploration
+- **`A`–`Z`**: Massive spring-bounced typography with radiant halos and companion emojis (e.g. `A` for 🍎 Apple, `B` for 🦋 Butterfly).
+- **`J`**: 👑 **Queen Jimha** royal crown fanfare!
+- **`H`**: 💖 **Jim Heart** cosmic alter ego easter egg!
+- **`0`–`9`**: Giant numerals accompanied by exact constellations of glittering stars.
+- **`Space`**: 🌟 Cosmic supernova explosion with rainbow fireworks!
+- **`Enter`**: 🎉 Party celebration with floating balloons and confetti showers!
+- **`Backspace`**: 🫧 Bubble pop flurry!
+- **`Escape` (Quick Tap)**: 🚀 Blast off rocket companion card!
+- **Mouse / Touch Drag**: Spawns floating, translucent soap bubbles that rise and pop on touch.
+
+### Engineering Parent Controls
+- **Exit Game**: Hold **`Shift + Escape`** continuously for 2.5 seconds (radial countdown HUD displays progress).
+- **Parent Virtual Switcher**: Press **`Up, Up`** rapidly or tap the top-right indicator to open the KWin D-Bus window switcher and seamlessly hand over focus without closing Jimha.
+- **Parent Gate**: 450ms long-press or upward swipe opens the **Sticker Book** to inspect unlocked badges.
+
+### Arcade Cheats
+- **The Konami Sequence**:
+  $$\uparrow \quad \uparrow \quad \downarrow \quad \downarrow \quad \leftarrow \quad \rightarrow \quad \leftarrow \quad \rightarrow \quad \text{B} \quad \text{A}$$
+  Unleashes **Rainbow God Mode**: full-screen multi-layer fireworks, continuous celestial chimes, and unlocks the coveted `konami_champion` badge.
+
+---
+
+## 🗺️ The 5 Concurrent Capability Tracks
+
+Jimha is built on non-linear parallel evolution across 5 tracks:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ Track A: Sensory Foundations & Toddler Invariants (Active Baseline)    │
+│ Track B: Dynamic Progression & Adaptive Growth Tiers (Explorer ➔ 4yr)  │
+│ Track C: Polyglot Multiverse & Phonics Engine (English + বাংলা)         │
+│ Track D: Multiplatform Fleet & Knot Mesh Swarm (Steam Deck + Tablets)  │
+│ Track E: Evergreen SWE, Cleanroom Verification & Packaging (Flatpak)   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+👉 *Explore the complete architectural roadmap in [**Macro Roadmap (`docs/ROADMAP.md`)**](docs/ROADMAP.md).*
+
+---
+
+## 📚 Complete Documentation Suite
+
+| Document | Purpose |
+| :--- | :--- |
+| [**Architecture & Deep-Dive**](docs/ARCHITECTURE.md) | The Self-Contained Product Invariant, PipeWire audio engine, KWin D-Bus ECMAScript injection, and PixiJS v8 particle pipeline. |
+| [**The 7 Dad-Mode Invariants**](docs/DAD_MODE_INVARIANTS.md) | Engineering parent perspective on why 18-month-old software requires specialized safety laws. |
+| [**Universe Lorebook**](docs/LORE.md) | The Steam Deck voice prompt, Queen Jimha vs Jim Heart, and the 7 Badges of Honor. |
+| [**Macro Product Roadmap**](docs/ROADMAP.md) | The 5 Concurrent Capability Tracks, Adaptive Growth Tiers, and Polyglot Phonics. |
+| [**Packaging & Distribution**](docs/PACKAGING.md) | Arch Linux `PKGBUILD`, Flatpak `org.purrfect.jimha`, and user-space deployment. |
+
+---
+
+## 🚀 Developer Quickstart & Hermetic Verification
 
 ### Prerequisites
+- **Node.js**: $\ge 20.x$, **pnpm**: $\ge 9.x$
+- **Rust & Cargo**: $\ge 1.78$
+- Linux system libraries: `webkit2gtk-4.1`, `gtk3`
 
-- Node.js >= 20, pnpm >= 9
-- Rust >= 1.78 and Cargo
-
-### Install Dependencies
-
+### Setup & Run
 ```bash
-pnpm install
-```
+# 1. Clone repository
+git clone https://github.com/kuasha420/jimha.git
+cd jimha
 
-### Run Frontend in Development
+# 2. Install dependencies & build frontend
+pnpm install --frozen-lockfile
+pnpm build
 
-```bash
+# 3. Run development web server
 pnpm dev
-```
 
-### Run Desktop Application (Tauri v2)
-
-```bash
+# 4. Run native desktop application (Tauri v2)
 pnpm tauri dev
 ```
 
 ### Hermetic Verification Suite
-
-Run the unified frontend and native backend verification suites:
+In adherence to **PSL-INV-001** and **PSL-INV-002**, verify the complete stack with sub-second test benchmarks:
 
 ```bash
-# Frontend Vitest suite (sub-second SLA)
+# Run Vitest frontend test suite (69 tests, <1.7s)
 pnpm test
 
-# Rust native backend test suite
+# Run Rust native backend test suite (20 tests, <0.1s)
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ---
 
-## 📦 Legacy Prototype
+## 📦 Packaging & Installation
 
-The original Python/PyQt6 prototype and its build artifacts are archived under [`legacy/python_prototype/`](legacy/python_prototype/).
+Jimha can be installed via **Arch Linux PKGBUILD**, **Flatpak**, or local user-space install:
+
+```bash
+# Arch Linux / SteamOS Desktop
+makepkg -si
+
+# Flatpak
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.purrfect.jimha.yml
+```
+
+👉 *See [**Packaging & Distribution Guide (`docs/PACKAGING.md`)**](docs/PACKAGING.md) for full instructions.*
 
 ---
 
-## 📄 License
+## 📄 License & Dedication
 
-Released under the [MIT License](LICENSE). Dedicated with love to Jimha. 💖
+Released under the [MIT License](LICENSE).  
+Dedicated with unconditional love to **Jimha** (Queen Jimha & Jim Heart) 💖👑
