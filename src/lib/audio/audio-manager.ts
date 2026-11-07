@@ -123,7 +123,16 @@ export class JimhaAudioManager {
     const selection = getFrequencyForKey(keyText, this.noteIndex);
     this.noteIndex = (this.noteIndex + 1) % PENTATONIC_FREQUENCIES.length;
 
-    // Trigger audio playback
+    // 1. Native PipeWire/ALSA stream via Tauri command (bypasses WebKit gesture limits)
+    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+      import('@tauri-apps/api/core')
+        .then(({ invoke }) => {
+          invoke('audio_play_key', { key: keyText }).catch(() => {});
+        })
+        .catch(() => {});
+    }
+
+    // 2. In-browser Web Audio fallback
     this.playFrequency(selection.frequency);
 
     return selection;

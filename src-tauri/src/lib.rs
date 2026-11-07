@@ -1,7 +1,9 @@
+pub mod audio;
 pub mod kiosk;
 pub mod profile;
 
 use std::sync::Mutex;
+use audio::NativeAudioEngine;
 use kiosk::WindowEntry;
 use profile::{ChildProfile, ProfileSettings, ProfileStore};
 
@@ -12,7 +14,16 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn kiosk_inhibit_shortcuts() -> Result<bool, String> {
+    if cfg!(debug_assertions) {
+        return Ok(false); // In dev mode, leave shortcuts intact for developer comfort
+    }
     kiosk::ensure_kwin_shortcut_inhibition()
+}
+
+#[tauri::command]
+fn audio_play_key(state: tauri::State<'_, NativeAudioEngine>, key: String) -> Result<(), String> {
+    state.play_key(&key);
+    Ok(())
 }
 
 #[tauri::command]
@@ -67,9 +78,11 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(Mutex::new(profile_store))
+        .manage(NativeAudioEngine::new())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            audio_play_key,
             kiosk_inhibit_shortcuts,
             kiosk_query_windows,
             kiosk_handover,
