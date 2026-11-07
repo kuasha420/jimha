@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { mount, unmount } from 'svelte';
 import ExitHoldHud from './ExitHoldHud.svelte';
 import UnlockCelebrationBanner from './UnlockCelebrationBanner.svelte';
+import StickerBook from './StickerBook.svelte';
+import type { JimhaAudioManager } from '../audio/audio-manager';
 
 describe('UI Component Invariants', () => {
   it('renders ExitHoldHud with Shift + Esc and remaining seconds', () => {
@@ -41,6 +43,34 @@ describe('UI Component Invariants', () => {
     const text = container.textContent || '';
     expect(text).toContain('First Spark');
     expect(text.toUpperCase()).toContain('HOLD OR SWIPE UP TO OPEN STICKER BOOK');
+
+    unmount(component);
+    container.remove();
+  });
+
+  it('renders StickerBook and calls audioManager.playStickerTapSound on sticker tap', () => {
+    const playStickerTapSound = vi.fn();
+    const fakeAudioManager = {
+      playStickerTapSound,
+    } as unknown as JimhaAudioManager;
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const component = mount(StickerBook, {
+      target: container,
+      props: {
+        isOpen: true,
+        unlockedStickers: ['first_spark'],
+        audioManager: fakeAudioManager,
+        onClose: () => {},
+      },
+    });
+
+    const card = container.querySelector('.sticker-card') as HTMLElement;
+    expect(card).not.toBeNull();
+    card.click();
+    expect(playStickerTapSound).toHaveBeenCalledWith(0);
 
     unmount(component);
     container.remove();

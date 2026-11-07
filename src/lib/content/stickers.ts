@@ -10,8 +10,8 @@ export interface StickerBadge {
 export const STICKERS: StickerBadge[] = [
   {
     id: 'first_spark',
-    title: 'First Spark 💖',
-    emoji: '💖',
+    title: 'First Spark ✨',
+    emoji: '✨',
     description: 'Pressed a magical key or popped your first bubble!',
     hint: 'Press any key or pop a bubble',
     accentColor: '#FF4081'
@@ -34,10 +34,10 @@ export const STICKERS: StickerBadge[] = [
   },
   {
     id: 'jim_heart',
-    title: 'Jim Heart 💖',
-    emoji: '💖',
-    description: 'Found the Jim Heart easter egg by pressing H!',
-    hint: 'Press the letter H',
+    title: 'Jim Heart ❤️',
+    emoji: '❤️',
+    description: 'Born from a whisper across the Knot mesh: a serendipitous voice-dictation spark that started Jimha\'s magical playground.',
+    hint: 'Listen closely to the heartbeat of the game...',
     accentColor: '#E040FB'
   },
   {

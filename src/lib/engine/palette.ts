@@ -33,7 +33,7 @@ export const ALPHABET_COMPANIONS: Record<string, [string, string]> = {
   E: ['🐘', 'Elephant'],
   F: ['🌸', 'Flower'],
   G: ['🎸', 'Guitar'],
-  H: ['💖', 'Jim Heart (Easter Egg! 💖)'], // The legendary voice-dictation spark!
+  H: ['❤️', 'Heart'],
   I: ['🍦', 'Ice Cream'],
   J: ['👑', 'Jimha! ✨'], // The queen herself!
   K: ['🪁', 'Kite'],

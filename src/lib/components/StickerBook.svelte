@@ -1,5 +1,6 @@
 <script lang="ts">
   import { STICKERS, type StickerBadge } from '../content/stickers';
+  import type { JimhaAudioManager } from '../audio/audio-manager';
 
   interface Props {
     isOpen: boolean;
@@ -7,6 +8,7 @@
     childName?: string;
     totalKeyPresses?: number;
     totalBubblesPopped?: number;
+    audioManager?: JimhaAudioManager | null;
     onClose: () => void;
   }
 
@@ -16,6 +18,7 @@
     childName = 'Jimha',
     totalKeyPresses = 0,
     totalBubblesPopped = 0,
+    audioManager = null,
     onClose
   }: Props = $props();
 
@@ -25,6 +28,21 @@
 
   function isUnlocked(id: string): boolean {
     return unlockedStickers.includes(id);
+  }
+
+  let tappedCardId = $state<string | null>(null);
+
+  function playStickerSound(sticker: StickerBadge, idx: number) {
+    tappedCardId = sticker.id;
+    setTimeout(() => {
+      if (tappedCardId === sticker.id) {
+        tappedCardId = null;
+      }
+    }, 450);
+
+    if (audioManager) {
+      audioManager.playStickerTapSound(idx);
+    }
   }
 
   function handleBackdrop(event: MouseEvent | PointerEvent) {
@@ -89,14 +107,18 @@
 
       <!-- Sticker grid -->
       <div class="stickers-grid" role="list">
-        {#each STICKERS as sticker (sticker.id)}
+        {#each STICKERS as sticker, idx (sticker.id)}
           {@const unlocked = isUnlocked(sticker.id)}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
             class="sticker-card"
             class:unlocked
             class:locked={!unlocked}
-            role="listitem"
+            class:tapped={tappedCardId === sticker.id}
+            role="button"
+            tabindex="0"
             style="--accent-color: {sticker.accentColor}"
+            onclick={() => playStickerSound(sticker, idx)}
           >
             <div class="card-glow"></div>
             <div class="badge-emblem">
@@ -268,6 +290,18 @@
     background: rgba(255, 255, 255, 0.03);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     overflow: hidden;
+    cursor: pointer;
+  }
+
+  .sticker-card.tapped {
+    animation: badge-spring 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes badge-spring {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.14); }
+    65% { transform: scale(0.95); }
+    100% { transform: scale(1); }
   }
 
   .sticker-card.unlocked {

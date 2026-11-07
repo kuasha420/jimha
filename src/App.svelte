@@ -37,7 +37,7 @@
 
   let pixiCanvas: PixiCanvas | null = $state(null);
   let switcherRef: VirtualSwitcher | null = $state(null);
-  let audioManager: JimhaAudioManager | null = null;
+  let audioManager: JimhaAudioManager | null = $state(null);
   let gamepadManager: GamepadManager | null = null;
   let touchCount = $state(0);
   let lastNoteName = $state('');
@@ -59,6 +59,16 @@
   let isStickerBookOpen = $state(false);
   let activeCelebrationStickerId = $state<string | null>(null);
   let showCelebrationBanner = $state(false);
+  let showEscapeParentHint = $state(false);
+  let escapeHintTimer: ReturnType<typeof setTimeout> | null = null;
+
+  $effect(() => {
+    if (isStickerBookOpen || virtualSwitcherActive) {
+      audioManager?.setAudioMode('ui');
+    } else {
+      audioManager?.setAudioMode('idle');
+    }
+  });
 
   // ESC hold state (3.0s continuous hold)
   let isEscPressed = $state(false);
@@ -120,6 +130,12 @@
       }
       activeCelebrationStickerId = unlocked;
       showCelebrationBanner = true;
+      if (audioManager) {
+        audioManager.playCelebrationFanfare();
+      }
+      if (pixiCanvas) {
+        pixiCanvas.triggerKey('✨', { color: '#FFD600', subtitle: '🌟 NEW BADGE UNLOCKED! 🌟' });
+      }
     }
   }
 
@@ -166,6 +182,7 @@
     touchCount += 1;
     void recordProgressionEvent('bubble_pop');
     if (audioManager) {
+      audioManager.setAudioMode('playing');
       const selection = audioManager.playKey('POP');
       lastNoteName = selection.noteName;
     }
@@ -290,6 +307,7 @@
       isEscPressed = false;
       escHoldProgress = 0;
     } else if (isShiftEsc) {
+      showEscapeParentHint = false;
       if (!isEscPressed) {
         isEscPressed = true;
         escStartTime = performance.now();
@@ -300,6 +318,15 @@
     } else {
       isEscPressed = false;
       escHoldProgress = 0;
+    }
+
+    // Lone Escape pressed: show discrete parent exit hint while retaining rocket companion card
+    if (event.key === 'Escape' && !isShiftEsc) {
+      showEscapeParentHint = true;
+      if (escapeHintTimer) clearTimeout(escapeHintTimer);
+      escapeHintTimer = setTimeout(() => {
+        showEscapeParentHint = false;
+      }, 4000);
     }
 
     // 4. Rekka Arcade Combo Buffer Processing
@@ -460,6 +487,14 @@
 
   onMount(() => {
     audioManager = new JimhaAudioManager();
+    audioManager
+      .unlock()
+      .then(() => {
+        audioManager?.playStartupChime();
+        audioManager?.setAudioMode('idle');
+      })
+      .catch(() => {});
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
@@ -499,7 +534,13 @@
 
     // Initial warm-up on first user interaction
     const unlockAudio = () => {
-      audioManager?.unlock();
+      audioManager
+        ?.unlock()
+        .then(() => {
+          audioManager?.playStartupChime();
+          audioManager?.setAudioMode('idle');
+        })
+        .catch(() => {});
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
@@ -508,6 +549,10 @@
   });
 
   onDestroy(() => {
+    if (escapeHintTimer) {
+      clearTimeout(escapeHintTimer);
+      escapeHintTimer = null;
+    }
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
     window.removeEventListener('contextmenu', (e: MouseEvent) => e.preventDefault(), { capture: true });
@@ -561,6 +606,7 @@
     childName={profile.child_name}
     totalKeyPresses={profile.total_key_presses}
     totalBubblesPopped={profile.total_bubbles_popped}
+    audioManager={audioManager}
     onClose={() => {
       isStickerBookOpen = false;
     }}
@@ -577,6 +623,12 @@
       isStickerBookOpen = true;
     }}
   />
+
+  {#if showEscapeParentHint}
+    <div class="escape-parent-hint" role="note">
+      (Parents: Hold Shift + Esc for 2.5s to exit)
+    </div>
+  {/if}
 
   <header class="hud-header">
     <div class="hud-pill brand-pill">
@@ -688,5 +740,36 @@
     transform: scale(1.05);
     border-color: rgba(255, 214, 0, 0.8);
     box-shadow: 0 4px 16px rgba(255, 214, 0, 0.3);
+  }
+
+  .escape-parent-hint {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13, 15, 24, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.6rem 1.4rem;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+    z-index: 50;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    animation: fade-in 0.3s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 10px);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
   }
 </style>

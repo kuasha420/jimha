@@ -2,6 +2,7 @@ import { PENTATONIC_FREQUENCIES, getFrequencyForKey, type FrequencySelection } f
 import { synthesizeChimeSamples } from './synth-dsp';
 import { CHIME_WORKLET_PROCESSOR_CODE } from './chime-worklet';
 import { getInstrumentConfig, type InstrumentId } from '../content/instruments';
+import { AmbientBgmEngine, type BgmMode } from './ambient-bgm';
 
 let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
 
@@ -27,6 +28,7 @@ export class JimhaAudioManager {
   private isUnlocked: boolean = false;
   private instrument: InstrumentId = 'celesta';
   private unlockPromise: Promise<boolean> | null = null;
+  private ambientBgm: AmbientBgmEngine = new AmbientBgmEngine();
 
   constructor() {
     // Lazily initialized on first interaction or explicitly via unlock()
@@ -64,6 +66,8 @@ export class JimhaAudioManager {
 
       this.isUnlocked = true;
       this.ensureBufferCache();
+      this.ambientBgm.setContext(this.ctx);
+      this.ambientBgm.start();
       return true;
     } catch (err) {
       console.debug('[JimhaAudio] unlock failed:', err);
@@ -100,6 +104,9 @@ export class JimhaAudioManager {
   public playKey(keyText: string = ''): FrequencySelection {
     const selection = getFrequencyForKey(keyText, this.noteIndex);
     this.noteIndex = (this.noteIndex + 1) % PENTATONIC_FREQUENCIES.length;
+
+    // Duck ambient background music when active key input occurs
+    this.ambientBgm.notifyInput();
 
     // 1. Native PipeWire stream via Tauri (0ms latency, bypasses browser sandbox)
     invokeNativeAudio(keyText);
@@ -165,7 +172,36 @@ export class JimhaAudioManager {
     }
   }
 
+  public setAudioMode(mode: BgmMode): void {
+    this.ambientBgm.setMode(mode);
+  }
+
+  public playStartupChime(): void {
+    const chord = [261.63, 392.00, 523.25];
+    chord.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playFrequency(freq);
+      }, idx * 100);
+    });
+  }
+
+  public playCelebrationFanfare(): void {
+    const fanfare = [523.25, 659.25, 783.99, 1046.50];
+    fanfare.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playFrequency(freq);
+      }, idx * 80);
+    });
+  }
+
+  public playStickerTapSound(index: number = 0): void {
+    const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+    const freq = highPentatonic[index % highPentatonic.length];
+    this.playFrequency(freq);
+  }
+
   public async close(): Promise<void> {
+    this.ambientBgm.stop();
     if (this.masterGain) {
       try {
         this.masterGain.disconnect();

@@ -127,6 +127,13 @@ describe('Stickers Content Pack', () => {
     const crown = getStickerById('jimha_crown');
     expect(crown).toBeDefined();
     expect(crown?.title).toBe('Queen Jimha 👑');
+
+    const spark = getStickerById('first_spark');
+    expect(spark?.title).toBe('First Spark ✨');
+
+    const heart = getStickerById('jim_heart');
+    expect(heart?.title).toBe('Jim Heart ❤️');
+
     expect(getStickerById('unknown')).toBeUndefined();
   });
 });
@@ -148,6 +155,13 @@ describe('Palette and Numbers Integration', () => {
     const dispJ = resolveKeyDisplay('J');
     expect(dispJ.subtitle).toContain('Jimha');
     expect(dispJ.subtitle).not.toContain('JimHa');
+  });
+
+  it('resolves H for Heart without duplicate hearts or explicit easter egg', () => {
+    const dispH = resolveKeyDisplay('H');
+    expect(dispH.title).toBe('H');
+    expect(dispH.subtitle).toBe('H is for Heart ❤️');
+    expect(dispH.emoji).toBe('❤️');
   });
 
   it('correctly resolves Space key without collapsing to KEY', () => {

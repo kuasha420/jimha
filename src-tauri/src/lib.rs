@@ -42,8 +42,10 @@ fn kiosk_minimize(window: tauri::Window) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn kiosk_close(window: tauri::Window) -> Result<(), String> {
-    window.close().map_err(|e| format!("Failed to close window: {}", e))
+fn kiosk_close(app: tauri::AppHandle, window: tauri::Window) -> Result<(), String> {
+    let _ = window.close();
+    app.exit(0);
+    Ok(())
 }
 
 #[tauri::command]
