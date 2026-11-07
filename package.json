@@ -11,7 +11,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build --no-bundle",
-    "audit": "bash scripts/audit_pipeline.sh",
+    "audit:pipeline": "bash scripts/audit_pipeline.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },
