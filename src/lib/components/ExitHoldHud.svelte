@@ -40,7 +40,7 @@
       <span class="hud-time">{formattedTime}</span>
     </div>
 
-    <div class="hud-cancel-hint">Release ESC to keep playing</div>
+    <div class="hud-cancel-hint">Hold Shift + ESC to exit &bull; Release to stay</div>
   </div>
 </div>
 

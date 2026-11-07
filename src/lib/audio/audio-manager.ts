@@ -21,6 +21,7 @@ function invokeNativeAudio(keyText: string): void {
 
 export class JimhaAudioManager {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private bufferCache: Map<number, AudioBuffer> = new Map();
   private noteIndex: number = 0;
   private isUnlocked: boolean = false;
@@ -49,6 +50,12 @@ export class JimhaAudioManager {
         const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (!AudioCtxClass) return false;
         this.ctx = new AudioCtxClass();
+      }
+
+      if (!this.masterGain && this.ctx.createGain) {
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
       }
 
       if (this.ctx.state === 'suspended') {
@@ -147,7 +154,11 @@ export class JimhaAudioManager {
     try {
       const source = this.ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(this.ctx.destination);
+      if (this.masterGain) {
+        source.connect(this.masterGain);
+      } else {
+        source.connect(this.ctx.destination);
+      }
       source.start();
     } catch (err) {
       console.debug('[JimhaAudio] buffer source playback failed:', err);
@@ -155,6 +166,12 @@ export class JimhaAudioManager {
   }
 
   public async close(): Promise<void> {
+    if (this.masterGain) {
+      try {
+        this.masterGain.disconnect();
+      } catch (_) {}
+      this.masterGain = null;
+    }
     if (this.ctx) {
       await this.ctx.close();
       this.ctx = null;

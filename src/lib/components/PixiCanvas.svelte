@@ -68,12 +68,27 @@
     color?: string;
   }
 
+  let keyPressHistory: number[] = [];
+  let lastInteractionTime: number = performance.now();
+  let attractModeActive: boolean = false;
+  let ambientSpawnTimer: number = 0;
+
   export function triggerKey(
     keyInput: string,
     subtitleOrOptions?: string | TriggerKeyOptions,
     customEmoji?: string,
     customColor?: string
   ): void {
+    const now = performance.now();
+    lastInteractionTime = now;
+    attractModeActive = false;
+
+    // Dynamic Particle Budget: If drumming (>4 keys within 500ms), throttle particles to prevent sensory fatigue
+    keyPressHistory.push(now);
+    keyPressHistory = keyPressHistory.filter((t) => now - t <= 500);
+    const isRapidDrumming = keyPressHistory.length > 4;
+    const burstCount = isRapidDrumming ? 8 : 28;
+
     const isOptionsObj = typeof subtitleOrOptions === 'object' && subtitleOrOptions !== null;
     const customSubtitle = isOptionsObj ? subtitleOrOptions.subtitle : subtitleOrOptions;
     const finalEmoji = isOptionsObj ? subtitleOrOptions.emoji : customEmoji;
@@ -89,7 +104,7 @@
     if (app && app.screen) {
       const cx = app.screen.width / 2;
       const cy = app.screen.height / 2;
-      const newParticles = spawnParticleBurst(cx, cy, 45);
+      const newParticles = spawnParticleBurst(cx, cy, burstCount);
       particles.push(...newParticles);
     }
 
@@ -262,6 +277,22 @@
       // Slowly shift background hue
       backgroundHue = (backgroundHue + dt * 3.0) % 360.0;
 
+      // Attract mode: after 20s of inactivity, gently drift stars and float slow buoyant bubbles
+      const timeSinceInteraction = performance.now() - lastInteractionTime;
+      if (timeSinceInteraction > 20000) {
+        attractModeActive = true;
+        ambientSpawnTimer += dt;
+        if (ambientSpawnTimer > 3.5 && bubbles.length < 18) {
+          ambientSpawnTimer = 0;
+          const randomX = (0.1 + Math.random() * 0.8) * width;
+          const ambientBubble = spawnBubble(randomX, height + 30);
+          bubbles.push(ambientBubble);
+        }
+      } else {
+        attractModeActive = false;
+        ambientSpawnTimer = 0;
+      }
+
       // 1. Render dynamic background with twilight glow & twinkling stars
       if (bgGraphics) {
         bgGraphics.clear();
@@ -270,6 +301,9 @@
         const nowSec = performance.now() / 1000.0;
         for (let i = 0; i < bgStars.length; i++) {
           const star = bgStars[i];
+          if (attractModeActive) {
+            star.relX = (star.relX + dt * 0.005) % 1.0;
+          }
           const twinkle = 0.5 + 0.5 * Math.sin(nowSec * 2.5 + star.phase);
           bgGraphics.circle(star.relX * width, star.relY * height, star.size)
             .fill({ color: 0xffffff, alpha: 0.25 + 0.55 * twinkle });
@@ -368,6 +402,8 @@
   });
 
   function handleContact(x: number, y: number): void {
+    lastInteractionTime = performance.now();
+    attractModeActive = false;
     const { hitBubble, remainingBubbles } = hitTestAndPop({ x, y }, bubbles);
     if (hitBubble) {
       bubbles = remainingBubbles;

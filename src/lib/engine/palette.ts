@@ -94,6 +94,14 @@ export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
   }
 
   switch (text) {
+    case 'ESCAPE':
+    case 'ESC':
+      return {
+        title: 'ESCAPE',
+        subtitle: '🚀 BLAST OFF TO SPACE! 🚀',
+        emoji: '🚀',
+        color: '#7C4DFF'
+      };
     case ' ':
     case 'SPACE':
       return {

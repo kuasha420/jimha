@@ -171,12 +171,14 @@
     }
   }
 
+  const pressedKeys = new Set<string>();
+
   function handleKeyDown(event: KeyboardEvent) {
+    pressedKeys.add(event.key);
+
     if (isStickerBookOpen) {
-      if (event.key === 'Escape' || event.key === 'Backspace') {
-        event.preventDefault();
-        isStickerBookOpen = false;
-      }
+      event.preventDefault();
+      isStickerBookOpen = false;
       return;
     }
 
@@ -279,20 +281,26 @@
       rekka.clear();
     }
 
-    // 3. Escape Hold Exit Protection (3.0s continuous hold)
-    if (event.key === 'Escape') {
+    // 3. Shift+Escape Compound Adult Exit Gate (2.5s continuous hold)
+    const isShiftEsc = event.key === 'Escape' && (event.shiftKey || pressedKeys.has('Shift'));
+    const isElbowMashing = pressedKeys.size > 2;
+
+    if (isElbowMashing) {
+      // Multiple keys pressed simultaneously (e.g. toddler elbow resting across top row) cancels exit
+      isEscPressed = false;
+      escHoldProgress = 0;
+    } else if (isShiftEsc) {
       if (!isEscPressed) {
         isEscPressed = true;
         escStartTime = performance.now();
         escHoldProgress = 0;
-        escRemainingSec = 3.0;
+        escRemainingSec = 2.5;
       }
       return;
+    } else {
+      isEscPressed = false;
+      escHoldProgress = 0;
     }
-
-    // Regular keypress interrupts Escape hold
-    isEscPressed = false;
-    escHoldProgress = 0;
 
     // 4. Rekka Arcade Combo Buffer Processing
     let token = event.key.toUpperCase();
@@ -327,7 +335,9 @@
   }
 
   function handleKeyUp(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    pressedKeys.delete(event.key);
+
+    if (event.key === 'Escape' || event.key === 'Shift') {
       isEscPressed = false;
       escHoldProgress = 0;
     }
@@ -410,14 +420,20 @@
   function tick() {
     const now = performance.now();
 
-    // Check ESC hold
+    // Check Shift+ESC compound hold
     if (isEscPressed) {
-      const elapsed = (now - escStartTime) / 1000;
-      escHoldProgress = Math.min(1.0, elapsed / 3.0);
-      escRemainingSec = Math.max(0.0, 3.0 - elapsed);
-      if (escHoldProgress >= 1.0) {
+      if (pressedKeys.size > 2) {
         isEscPressed = false;
-        void callTauri('kiosk_close');
+        escHoldProgress = 0;
+      } else {
+        const elapsed = (now - escStartTime) / 1000;
+        const targetSec = profile.settings?.esc_hold_seconds || 2.5;
+        escHoldProgress = Math.min(1.0, elapsed / targetSec);
+        escRemainingSec = Math.max(0.0, targetSec - elapsed);
+        if (escHoldProgress >= 1.0) {
+          isEscPressed = false;
+          void callTauri('kiosk_close');
+        }
       }
     }
 
@@ -466,6 +482,15 @@
     });
 
     animFrameId = requestAnimationFrame(tick);
+
+    const handleBlur = () => {
+      pressedKeys.clear();
+      isEscPressed = false;
+      escHoldProgress = 0;
+      isAltTabPressed = false;
+      altTabHoldProgress = 0;
+    };
+    window.addEventListener('blur', handleBlur);
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
@@ -546,6 +571,10 @@
     visible={showCelebrationBanner}
     onDismiss={() => {
       showCelebrationBanner = false;
+    }}
+    onOpenStickerBook={() => {
+      showCelebrationBanner = false;
+      isStickerBookOpen = true;
     }}
   />
 

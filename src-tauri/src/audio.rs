@@ -149,13 +149,19 @@ impl NativeAudioEngine {
             Self::write_chime_wav(&wav_path, freq);
         }
 
-        // Clean dead processes in pool
+        // Clean dead processes in pool and enforce voice stealing (max 4 concurrent voices)
         if let Ok(mut pool) = self.proc_pool.lock() {
             pool.retain_mut(|p| p.try_wait().map(|s| s.is_none()).unwrap_or(false));
+            while pool.len() >= 4 {
+                if let Some(mut oldest) = pool.drain(..1).next() {
+                    let _ = oldest.kill();
+                }
+            }
+
             let is_pw = player.to_string_lossy().contains("pw-play");
             let mut cmd = Command::new(player);
             if is_pw {
-                cmd.args(["--media-role=Game", "--volume=1.0", wav_path.to_str().unwrap()]);
+                cmd.args(["--media-role=Game", "--volume=0.8", wav_path.to_str().unwrap()]);
             } else {
                 cmd.args(["--media-role=Game", wav_path.to_str().unwrap()]);
             }

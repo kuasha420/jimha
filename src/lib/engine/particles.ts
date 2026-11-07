@@ -111,9 +111,12 @@ export function updateParticles(
   return alive;
 }
 
+export const MAX_BUBBLES = 25;
+
 export function updateBubbles(
   bubbles: FloatingBubble[],
-  dt: number
+  dt: number,
+  maxBubbles: number = MAX_BUBBLES
 ): FloatingBubble[] {
   const alive: FloatingBubble[] = [];
 
@@ -126,6 +129,10 @@ export function updateBubbles(
     if (b.life > 0 && b.y > -100) {
       alive.push(b);
     }
+  }
+
+  if (alive.length > maxBubbles) {
+    return alive.slice(alive.length - maxBubbles);
   }
 
   return alive;

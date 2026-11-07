@@ -1,17 +1,58 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { getStickerById } from '../content/stickers';
 
   interface Props {
     stickerId: string | null;
     visible: boolean;
     onDismiss: () => void;
+    onOpenStickerBook?: () => void;
   }
 
-  const { stickerId, visible, onDismiss }: Props = $props();
+  const { stickerId, visible, onDismiss, onOpenStickerBook }: Props = $props();
 
   const sticker = $derived(stickerId ? getStickerById(stickerId) : null);
   let timerId: ReturnType<typeof setTimeout> | null = null;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let pointerDownTime = 0;
+  let pointerStartY = 0;
+  let didTriggerHold = false;
+
+  function handlePointerDown(e: PointerEvent) {
+    pointerDownTime = performance.now();
+    pointerStartY = e.clientY;
+    didTriggerHold = false;
+
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      didTriggerHold = true;
+      if (onOpenStickerBook) {
+        onOpenStickerBook();
+      }
+    }, 450);
+  }
+
+  function handlePointerUp(e: PointerEvent) {
+    if (holdTimer) clearTimeout(holdTimer);
+    const duration = performance.now() - pointerDownTime;
+    const deltaY = pointerStartY - e.clientY; // upward swipe
+
+    if (didTriggerHold || duration >= 450 || deltaY > 30) {
+      if (onOpenStickerBook) {
+        onOpenStickerBook();
+        return;
+      }
+    }
+
+    // Brief normal tap simply dismisses banner
+    onDismiss();
+  }
+
+  function handlePointerCancel() {
+    if (holdTimer) clearTimeout(holdTimer);
+    didTriggerHold = false;
+  }
 
   $effect(() => {
     if (visible) {
@@ -24,16 +65,20 @@
 
   onDestroy(() => {
     if (timerId) clearTimeout(timerId);
+    if (holdTimer) clearTimeout(holdTimer);
   });
 </script>
 
 {#if visible && sticker}
   <aside class="celebration-container" role="status" aria-live="polite">
-    <button
-      type="button"
+    <div
       class="celebration-card"
-      onclick={onDismiss}
-      aria-label="Dismiss new badge notification: {sticker.title}"
+      onpointerdown={handlePointerDown}
+      onpointerup={handlePointerUp}
+      onpointercancel={handlePointerCancel}
+      role="button"
+      tabindex="0"
+      aria-label="New badge unlocked: {sticker.title}. Hold or swipe up to view album."
     >
       <div class="sparkle-orbit left-orbit">✨</div>
       <div class="badge-icon-wrap" style="--accent: {sticker.accentColor}">
@@ -43,9 +88,12 @@
         <div class="banner-tag">🌟 NEW BADGE UNLOCKED! 🌟</div>
         <h2 class="badge-title">{sticker.title}</h2>
         <p class="badge-desc">{sticker.description}</p>
+        <div class="gesture-cue">
+          <span class="gesture-icon">👆</span> Hold or swipe up to open Sticker Book 📖
+        </div>
       </div>
       <div class="sparkle-orbit right-orbit">🎉</div>
-    </button>
+    </div>
   </aside>
 {/if}
 
@@ -126,6 +174,32 @@
     margin: 0;
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .gesture-cue {
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #00e5ff;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    animation: cue-pulse 2s ease-in-out infinite;
+  }
+
+  .gesture-icon {
+    font-size: 0.9rem;
+  }
+
+  @keyframes cue-pulse {
+    0%, 100% {
+      opacity: 0.75;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
   }
 
   .sparkle-orbit {

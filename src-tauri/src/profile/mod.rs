@@ -13,9 +13,9 @@ pub struct ProfileSettings {
 impl Default for ProfileSettings {
     fn default() -> Self {
         Self {
-            esc_hold_seconds: 3.0,
+            esc_hold_seconds: 2.5,
             parent_gate_seconds: 2.0,
-            audio_volume: 1.0,
+            audio_volume: 0.8,
             instrument: "celesta".to_string(),
         }
     }
@@ -236,7 +236,8 @@ mod tests {
         assert_eq!(profile.total_bubbles_popped, 0);
         assert!(profile.unlocked_stickers.is_empty());
         assert_eq!(profile.settings.instrument, "celesta");
-        assert_eq!(profile.settings.esc_hold_seconds, 3.0);
+        assert_eq!(profile.settings.esc_hold_seconds, 2.5);
+        assert_eq!(profile.settings.audio_volume, 0.8);
     }
 
     #[test]

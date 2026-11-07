@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
   import { STICKERS, type StickerBadge } from '../content/stickers';
 
   interface Props {
@@ -28,31 +27,23 @@
     return unlockedStickers.includes(id);
   }
 
-  function handleKeyDown(event: KeyboardEvent) {
-    if (!isOpen) return;
-    if (event.key === 'Escape' || event.key === 'Backspace') {
-      event.stopPropagation();
-      event.preventDefault();
+  function handleBackdrop(event: MouseEvent | PointerEvent) {
+    if (event.target === event.currentTarget) {
       onClose();
     }
   }
-
-  onMount(() => {
-    window.addEventListener('keydown', handleKeyDown, true);
-  });
-
-  onDestroy(() => {
-    window.removeEventListener('keydown', handleKeyDown, true);
-  });
 </script>
 
 {#if isOpen}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="sticker-modal-overlay"
     role="dialog"
     aria-modal="true"
     aria-label="Jimha Magical Sticker Book"
     tabindex="-1"
+    onclick={handleBackdrop}
+    onpointerdown={handleBackdrop}
   >
     <div class="sticker-book-panel">
       <!-- Header -->
