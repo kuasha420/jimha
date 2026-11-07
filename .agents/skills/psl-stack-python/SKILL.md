@@ -5,6 +5,7 @@ description: >-
   Use when writing, testing, or executing Python scripts, lifecycle hooks, CLI commands,
   or harness components.
 ---
+
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Arafat Zahan (@kuasha420) -->
 <!-- Corporate Stewardship & Infrastructure: Purrfect Software Limited (PSL) -->
@@ -19,11 +20,13 @@ This skill codifies empirical Python development standards, hermetic execution r
 ## 1. Runtime Environment Invariants
 
 ### 1.1 Hermetic CPython >= 3.12 Enforcement
+
 - All scripts and harness lifecycle hooks must target CPython >= 3.12.
 - The harness dynamically discovers and prefers hermetic, isolated Python runtimes (e.g. from the `uv` python cache or isolated venvs) via `pipeline.psl_doctor.find_hermetic_uv_python()` or `sys.executable`.
 - Never rely on mutating global system Python packages or running unpinned user-space dependencies.
 
 ### 1.2 Exception Hygiene & Strict Failure Transparency (Rule 1)
+
 - **Absolute ban on bare `except:`** and `except Exception: pass`.
 - Every handled exception must either:
   1. Recover deterministically with an explicit fallback or retry, OR
@@ -50,6 +53,7 @@ This skill codifies empirical Python development standards, hermetic execution r
 ## 2. Testing & Isolation Invariants
 
 ### 2.1 Clean-Room Temporary Directory Isolation
+
 - Tests and transient harness operations must never pollute the repository workspace with temporary files, state databases, or cache directories.
 - Always use `tempfile.TemporaryDirectory()` (or redirect via `PSL_HARNESS_STATE_DIR` environment override) in test fixtures and tear them down in `tearDown()`:
   ```python
@@ -67,6 +71,7 @@ This skill codifies empirical Python development standards, hermetic execution r
   ```
 
 ### 2.2 Sub-Second Test Invariant (ADR-015)
+
 - The entire automated test suite (`agyis test`) must execute in strictly **under 1.0 second**.
 - Unit tests must be hermetic and in-memory:
   - Do not make external network requests.
@@ -74,6 +79,7 @@ This skill codifies empirical Python development standards, hermetic execution r
   - Avoid unnecessary disk thrashing; use memory buffers (`io.StringIO`, `io.BytesIO`) or compact temporary directories.
 
 ### 2.3 Script Invocation & Syntax Hygiene
+
 - For complex logic or multi-line automation, write standalone script modules instead of executing deeply nested inline `python3 -c "..."` commands that suffer from quote-escaping and f-string corruption in bash shells.
 - In Python 3.12+, leverage modern type annotations (`list[T]`, `dict[K, V]`, `X | Y`) without deprecated `typing` imports where appropriate, maintaining backward compatibility when needed.
 

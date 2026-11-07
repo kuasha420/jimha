@@ -19,12 +19,10 @@
     totalKeyPresses = 0,
     totalBubblesPopped = 0,
     audioManager = null,
-    onClose
+    onClose,
   }: Props = $props();
 
-  const unlockedCount = $derived(
-    STICKERS.filter((s) => unlockedStickers.includes(s.id)).length
-  );
+  const unlockedCount = $derived(STICKERS.filter((s) => unlockedStickers.includes(s.id)).length);
 
   function isUnlocked(id: string): boolean {
     return unlockedStickers.includes(id);
@@ -77,13 +75,7 @@
           </p>
         </div>
 
-        <button
-          class="close-button"
-          aria-label="Close Sticker Book"
-          onclick={onClose}
-        >
-          ✕
-        </button>
+        <button class="close-button" aria-label="Close Sticker Book" onclick={onClose}> ✕ </button>
       </header>
 
       <!-- Stats ribbon -->
@@ -145,9 +137,7 @@
 
       <!-- Footer action -->
       <footer class="panel-footer">
-        <button class="resume-button" onclick={onClose}>
-          💖 Return to Play (ESC) 🚀
-        </button>
+        <button class="resume-button" onclick={onClose}> 💖 Return to Play (ESC) 🚀 </button>
       </footer>
     </div>
   </div>
@@ -288,7 +278,9 @@
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.03);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
     overflow: hidden;
     cursor: pointer;
   }
@@ -298,10 +290,18 @@
   }
 
   @keyframes badge-spring {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.14); }
-    65% { transform: scale(0.95); }
-    100% { transform: scale(1); }
+    0% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.14);
+    }
+    65% {
+      transform: scale(0.95);
+    }
+    100% {
+      transform: scale(1);
+    }
   }
 
   .sticker-card.unlocked {
@@ -407,7 +407,9 @@
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(255, 64, 129, 0.4);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
   }
 
   .resume-button:hover {

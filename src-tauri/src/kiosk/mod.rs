@@ -163,7 +163,7 @@ pub fn parse_qdbus_matches(text: &str) -> Vec<(String, String, String)> {
 /// Encode arbitrary bytes into standard base64 string.
 pub fn encode_base64(bytes: &[u8]) -> String {
     const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as usize;
         let b1 = chunk.get(1).map(|&b| b as usize).unwrap_or(0);
@@ -213,7 +213,10 @@ pub fn resolve_icon_data_url(icon_name: &str) -> Option<String> {
         let svg = dir.join(format!("{}.svg", clean));
         if svg.is_file() {
             if let Ok(bytes) = fs::read(&svg) {
-                return Some(format!("data:image/svg+xml;base64,{}", encode_base64(&bytes)));
+                return Some(format!(
+                    "data:image/svg+xml;base64,{}",
+                    encode_base64(&bytes)
+                ));
             }
         }
     }
@@ -274,7 +277,14 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
     };
 
     let read_res = Command::new(&kread_path)
-        .args(["--file", "kwinrulesrc", "--group", "General", "--key", "rules"])
+        .args([
+            "--file",
+            "kwinrulesrc",
+            "--group",
+            "General",
+            "--key",
+            "rules",
+        ])
         .output()
         .map_err(|e| format!("Failed to execute kreadconfig6: {}", e))?;
 
@@ -296,7 +306,15 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
         let count_str = rules.len().to_string();
 
         let w1 = Command::new(&kwrite_path)
-            .args(["--file", "kwinrulesrc", "--group", "General", "--key", "rules", &new_rules])
+            .args([
+                "--file",
+                "kwinrulesrc",
+                "--group",
+                "General",
+                "--key",
+                "rules",
+                &new_rules,
+            ])
             .output()
             .map_err(|e| format!("Failed to write kwinrulesrc rules list: {}", e))?;
         if !w1.status.success() {
@@ -307,7 +325,15 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
         }
 
         let w2 = Command::new(&kwrite_path)
-            .args(["--file", "kwinrulesrc", "--group", "General", "--key", "count", &count_str])
+            .args([
+                "--file",
+                "kwinrulesrc",
+                "--group",
+                "General",
+                "--key",
+                "count",
+                &count_str,
+            ])
             .output()
             .map_err(|e| format!("Failed to write kwinrulesrc count: {}", e))?;
         if !w2.status.success() {
@@ -328,7 +354,15 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
 
         for (k, v) in props {
             let wp = Command::new(&kwrite_path)
-                .args(["--file", "kwinrulesrc", "--group", "jimha_lockdown", "--key", k, v])
+                .args([
+                    "--file",
+                    "kwinrulesrc",
+                    "--group",
+                    "jimha_lockdown",
+                    "--key",
+                    k,
+                    v,
+                ])
                 .output()
                 .map_err(|e| format!("Failed to write rule property {}: {}", k, e))?;
             if !wp.status.success() {
@@ -366,7 +400,13 @@ pub async fn query_kwin_windows() -> Result<Vec<WindowEntry>, String> {
     };
 
     let output = Command::new(qdbus_cmd)
-        .args(["--literal", "org.kde.KWin", "/WindowsRunner", "org.kde.krunner1.Match", ""])
+        .args([
+            "--literal",
+            "org.kde.KWin",
+            "/WindowsRunner",
+            "org.kde.krunner1.Match",
+            "",
+        ])
         .output()
         .map_err(|e| format!("Failed to execute qdbus WindowsRunner: {}", e))?;
 
@@ -386,19 +426,30 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
         None => return Err("Neither qdbus nor qdbus6 binary found on PATH".to_string()),
     };
 
-    let (_clean_target, script_content) = synthesize_kwin_handover_script(target_match_id.as_deref());
+    let (_clean_target, script_content) =
+        synthesize_kwin_handover_script(target_match_id.as_deref());
 
     let temp_dir = std::env::temp_dir();
     let temp_file = temp_dir.join(format!("jimha_handover_{}.js", std::process::id()));
 
-    fs::write(&temp_file, &script_content)
-        .map_err(|e| format!("Failed to write transient KWin script {}: {}", temp_file.display(), e))?;
+    fs::write(&temp_file, &script_content).map_err(|e| {
+        format!(
+            "Failed to write transient KWin script {}: {}",
+            temp_file.display(),
+            e
+        )
+    })?;
 
     let plugin_name = "jimha_handover";
 
     // Best-effort unload
     let _ = Command::new(&qdbus_cmd)
-        .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", plugin_name])
+        .args([
+            "org.kde.KWin",
+            "/Scripting",
+            "org.kde.kwin.Scripting.unloadScript",
+            plugin_name,
+        ])
         .output();
 
     let load_res = Command::new(&qdbus_cmd)
@@ -430,7 +481,10 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
         .find(|w| w.chars().all(|c| c.is_ascii_digit()))
         .ok_or_else(|| {
             let _ = fs::remove_file(&temp_file);
-            format!("KWin loadScript returned invalid script ID: {}", stdout_str.trim())
+            format!(
+                "KWin loadScript returned invalid script ID: {}",
+                stdout_str.trim()
+            )
         })?;
 
     let run_res = Command::new(&qdbus_cmd)
@@ -450,7 +504,12 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
 
     // Cleanup
     let _ = Command::new(&qdbus_cmd)
-        .args(["org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", plugin_name])
+        .args([
+            "org.kde.KWin",
+            "/Scripting",
+            "org.kde.kwin.Scripting.unloadScript",
+            plugin_name,
+        ])
         .output();
     let _ = fs::remove_file(&temp_file);
 
@@ -488,7 +547,8 @@ mod tests {
 
     #[test]
     fn test_synthesize_handover_script_target_window() {
-        let (target, script) = synthesize_kwin_handover_script(Some("{AABBCCDD-1122-3344-5566-778899AABBCC}"));
+        let (target, script) =
+            synthesize_kwin_handover_script(Some("{AABBCCDD-1122-3344-5566-778899AABBCC}"));
         assert_eq!(target, "aabbccdd-1122-3344-5566-778899aabbcc");
         assert!(script.contains("workspace.raiseWindow(w);"));
         assert!(script.contains("w.minimized = false;"));
@@ -516,11 +576,27 @@ mod tests {
     #[test]
     fn test_filter_window_matches() {
         let raw = vec![
-            ("uuid-1".to_string(), "Jimha".to_string(), "jimha".to_string()),
-            ("uuid-2".to_string(), "Firefox".to_string(), "firefox".to_string()),
+            (
+                "uuid-1".to_string(),
+                "Jimha".to_string(),
+                "jimha".to_string(),
+            ),
+            (
+                "uuid-2".to_string(),
+                "Firefox".to_string(),
+                "firefox".to_string(),
+            ),
             ("uuid-3".to_string(), "".to_string(), "unknown".to_string()),
-            ("uuid-2".to_string(), "Firefox Duplicate".to_string(), "firefox".to_string()),
-            ("uuid-4".to_string(), "VS Code - Jimha Project".to_string(), "code".to_string()),
+            (
+                "uuid-2".to_string(),
+                "Firefox Duplicate".to_string(),
+                "firefox".to_string(),
+            ),
+            (
+                "uuid-4".to_string(),
+                "VS Code - Jimha Project".to_string(),
+                "code".to_string(),
+            ),
         ];
 
         let filtered = filter_window_matches(raw);
@@ -532,9 +608,11 @@ mod tests {
 
     #[test]
     fn test_filter_window_matches_fallback_desktop() {
-        let raw = vec![
-            ("uuid-1".to_string(), "Jimha".to_string(), "jimha".to_string()),
-        ];
+        let raw = vec![(
+            "uuid-1".to_string(),
+            "Jimha".to_string(),
+            "jimha".to_string(),
+        )];
         let filtered = filter_window_matches(raw);
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].id, "desktop");

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
-  import { PALETTE, getRandomColor, resolveKeyDisplay } from '../engine/palette';
+  import { getRandomColor, resolveKeyDisplay } from '../engine/palette';
   import { calculateElasticScale, calculateCardAlpha } from '../engine/spring';
   import {
     spawnParticleBurst,
@@ -9,12 +9,9 @@
     updateParticles,
     updateBubbles,
     type Particle,
-    type FloatingBubble
+    type FloatingBubble,
   } from '../engine/particles';
-  import {
-    InputMultiplexer,
-    hitTestAndPop
-  } from '../engine/input-multiplexer';
+  import { InputMultiplexer, hitTestAndPop } from '../engine/input-multiplexer';
 
   interface Props {
     onBubblePop?: (bubble: FloatingBubble) => void;
@@ -30,7 +27,6 @@
   // Active state
   let currentTitle = $state('JIMHA');
   let currentSubtitle = $state('💖 Smash any button to play! 💖');
-  let currentEmoji = $state('✨');
   let currentColor = $state('#FF4081');
   let cardAge = 0.0;
   let backgroundHue = 260.0;
@@ -58,7 +54,7 @@
       relX: Math.random(),
       relY: Math.random(),
       size: 2.0 + Math.random() * 3.0,
-      phase: Math.random() * Math.PI * 2
+      phase: Math.random() * Math.PI * 2,
     });
   }
 
@@ -76,7 +72,7 @@
   export function triggerKey(
     keyInput: string,
     subtitleOrOptions?: string | TriggerKeyOptions,
-    customEmoji?: string,
+    _customEmoji?: string,
     customColor?: string
   ): void {
     const now = performance.now();
@@ -91,13 +87,11 @@
 
     const isOptionsObj = typeof subtitleOrOptions === 'object' && subtitleOrOptions !== null;
     const customSubtitle = isOptionsObj ? subtitleOrOptions.subtitle : subtitleOrOptions;
-    const finalEmoji = isOptionsObj ? subtitleOrOptions.emoji : customEmoji;
     const finalColor = isOptionsObj ? subtitleOrOptions.color : customColor;
 
     const resolved = resolveKeyDisplay(keyInput);
     currentTitle = resolved.title;
     currentSubtitle = customSubtitle ?? resolved.subtitle;
-    currentEmoji = finalEmoji ?? resolved.emoji;
     currentColor = finalColor ?? resolved.color ?? getRandomColor();
     cardAge = 0.0;
 
@@ -143,14 +137,14 @@
       fontFamily: 'Cantarell, system-ui, -apple-system, sans-serif',
       fontSize,
       fontWeight: '900',
-      fill: currentColor
+      fill: currentColor,
     });
 
     keyShadowText.style = new TextStyle({
       fontFamily: 'Cantarell, system-ui, -apple-system, sans-serif',
       fontSize,
       fontWeight: '900',
-      fill: '#000000'
+      fill: '#000000',
     });
 
     keyTitleText.anchor.set(0.5, 0.5);
@@ -163,7 +157,7 @@
       fontFamily: 'Cantarell, system-ui, -apple-system, sans-serif',
       fontSize: subFontSize,
       fontWeight: '700',
-      fill: '#FFFFFF'
+      fill: '#FFFFFF',
     });
     subtitleText.anchor.set(0.5, 0.5);
 
@@ -182,7 +176,15 @@
     }
   }
 
-  function drawStar(g: Graphics, cx: number, cy: number, r: number, color: string, alpha: number, points: number = 5): void {
+  function drawStar(
+    g: Graphics,
+    cx: number,
+    cy: number,
+    r: number,
+    color: string,
+    alpha: number,
+    points: number = 5
+  ): void {
     const step = Math.PI / points;
     const innerR = r * 0.45;
     const poly: number[] = [];
@@ -194,7 +196,14 @@
     g.poly(poly).fill({ color, alpha });
   }
 
-  function drawHeart(g: Graphics, cx: number, cy: number, size: number, color: string, alpha: number): void {
+  function drawHeart(
+    g: Graphics,
+    cx: number,
+    cy: number,
+    size: number,
+    color: string,
+    alpha: number
+  ): void {
     const s = size * 0.6;
     g.moveTo(cx, cy + s * 0.3)
       .bezierCurveTo(cx - s, cy - s * 0.7, cx - s * 1.2, cy + s * 0.2, cx, cy + s)
@@ -211,7 +220,7 @@
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-      backgroundColor: 0x0d0f18
+      backgroundColor: 0x0d0f18,
     });
 
     if (isDestroyed) {
@@ -299,13 +308,13 @@
 
         // Subtle gradient simulation via background box and radial glow
         const nowSec = performance.now() / 1000.0;
-        for (let i = 0; i < bgStars.length; i++) {
-          const star = bgStars[i];
+        for (const star of bgStars) {
           if (attractModeActive) {
             star.relX = (star.relX + dt * 0.005) % 1.0;
           }
           const twinkle = 0.5 + 0.5 * Math.sin(nowSec * 2.5 + star.phase);
-          bgGraphics.circle(star.relX * width, star.relY * height, star.size)
+          bgGraphics
+            .circle(star.relX * width, star.relY * height, star.size)
             .fill({ color: 0xffffff, alpha: 0.25 + 0.55 * twinkle });
         }
       }
@@ -314,8 +323,7 @@
       bubbles = updateBubbles(bubbles, dt);
       if (bubbleGraphics) {
         bubbleGraphics.clear();
-        for (let i = 0; i < bubbles.length; i++) {
-          const b = bubbles[i];
+        for (const b of bubbles) {
           // Main bubble body
           bubbleGraphics
             .circle(b.x, b.y, b.radius)
@@ -333,14 +341,15 @@
       particles = updateParticles(particles, dt, height);
       if (particleGraphics) {
         particleGraphics.clear();
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
+        for (const p of particles) {
           const pLife = Math.max(0, Math.min(1, p.life));
 
           if (p.shape === 'circle') {
             particleGraphics.circle(p.x, p.y, p.size / 2).fill({ color: p.color, alpha: pLife });
           } else if (p.shape === 'confetti') {
-            particleGraphics.rect(p.x - p.size / 2, p.y - p.size / 4, p.size, p.size / 2).fill({ color: p.color, alpha: pLife });
+            particleGraphics
+              .rect(p.x - p.size / 2, p.y - p.size / 4, p.size, p.size / 2)
+              .fill({ color: p.color, alpha: pLife });
           } else if (p.shape === 'star') {
             drawStar(particleGraphics, p.x, p.y, p.size / 2, p.color, pLife);
           } else if (p.shape === 'heart') {
@@ -398,7 +407,7 @@
         const megaBurst = spawnParticleBurst(avgX, avgY, 55);
         particles.push(...megaBurst);
       }
-    }
+    },
   });
 
   function handleContact(x: number, y: number): void {

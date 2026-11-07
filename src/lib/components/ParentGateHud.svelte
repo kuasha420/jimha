@@ -21,13 +21,7 @@
     <div class="hud-dial">
       <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
         <!-- Background track -->
-        <circle
-          class="ring-bg"
-          cx="60"
-          cy="60"
-          r={radius}
-          stroke-width="8"
-        />
+        <circle class="ring-bg" cx="60" cy="60" r={radius} stroke-width="8" />
         <!-- Progress arc in Gold (#FFD700) -->
         <circle
           class="ring-progress"

@@ -1,11 +1,4 @@
-export type ShapeType =
-  | 'circle'
-  | 'square'
-  | 'triangle'
-  | 'star'
-  | 'heart'
-  | 'diamond'
-  | 'hexagon';
+export type ShapeType = 'circle' | 'square' | 'triangle' | 'star' | 'heart' | 'diamond' | 'hexagon';
 
 export interface ShapeContent {
   id: ShapeType;
@@ -23,7 +16,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '🔴',
     particleShape: 'circle',
     color: '#00E5FF',
-    subtitle: 'Round and smooth like a bubble! 🫧'
+    subtitle: 'Round and smooth like a bubble! 🫧',
   },
   {
     id: 'square',
@@ -31,7 +24,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '🟧',
     particleShape: 'square',
     color: '#FF6D00',
-    subtitle: 'Four equal sides and four corners! 📦'
+    subtitle: 'Four equal sides and four corners! 📦',
   },
   {
     id: 'triangle',
@@ -39,7 +32,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '🔺',
     particleShape: 'triangle',
     color: '#FFD600',
-    subtitle: 'Three sharp points reaching high! 📐'
+    subtitle: 'Three sharp points reaching high! 📐',
   },
   {
     id: 'star',
@@ -47,7 +40,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '⭐',
     particleShape: 'star',
     color: '#FF4081',
-    subtitle: 'Five twinkling points shining bright! ✨'
+    subtitle: 'Five twinkling points shining bright! ✨',
   },
   {
     id: 'heart',
@@ -55,7 +48,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '💖',
     particleShape: 'heart',
     color: '#E040FB',
-    subtitle: 'Full of warm love and joy! 💖'
+    subtitle: 'Full of warm love and joy! 💖',
   },
   {
     id: 'diamond',
@@ -63,7 +56,7 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '💎',
     particleShape: 'confetti',
     color: '#00E676',
-    subtitle: 'Glittering crystal gem! 💎'
+    subtitle: 'Glittering crystal gem! 💎',
   },
   {
     id: 'hexagon',
@@ -71,13 +64,11 @@ export const SENSORY_SHAPES: ShapeContent[] = [
     emoji: '⬡',
     particleShape: 'circle',
     color: '#7C4DFF',
-    subtitle: 'Six sweet sides like a honeycomb! 🐝'
-  }
+    subtitle: 'Six sweet sides like a honeycomb! 🐝',
+  },
 ];
 
 export function getShapeContent(idOrName: string): ShapeContent | undefined {
   const norm = idOrName.trim().toLowerCase();
-  return SENSORY_SHAPES.find(
-    (shape) => shape.id === norm || shape.name.toLowerCase() === norm
-  );
+  return SENSORY_SHAPES.find((shape) => shape.id === norm || shape.name.toLowerCase() === norm);
 }

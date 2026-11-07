@@ -7,9 +7,9 @@ describe('Pentatonic Frequencies & Audio Mapping Contract', () => {
     expect(NOTE_NAMES.length).toBe(11);
 
     expect(PENTATONIC_FREQUENCIES[0]).toBe(261.63); // C4
-    expect(PENTATONIC_FREQUENCIES[4]).toBe(440.00); // A4
+    expect(PENTATONIC_FREQUENCIES[4]).toBe(440.0); // A4
     expect(PENTATONIC_FREQUENCIES[5]).toBe(523.25); // C5
-    expect(PENTATONIC_FREQUENCIES[10]).toBe(1046.50); // C6
+    expect(PENTATONIC_FREQUENCIES[10]).toBe(1046.5); // C6
   });
 
   it('correctly maps sequential note indexes within pentatonic bounds', () => {
@@ -25,7 +25,7 @@ describe('Pentatonic Frequencies & Audio Mapping Contract', () => {
     const keyA = getFrequencyForKey('A', 0);
     const keyB = getFrequencyForKey('B', 0);
     expect(keyA.index).toBe(10);
-    expect(keyA.frequency).toBe(1046.50);
+    expect(keyA.frequency).toBe(1046.5);
     expect(keyA.noteName).toBe('C6');
 
     expect(keyB.index).toBe(0);
@@ -36,7 +36,7 @@ describe('Pentatonic Frequencies & Audio Mapping Contract', () => {
   it('wraps around negative noteIndex correctly to valid pentatonic frequency', () => {
     const selection = getFrequencyForKey('', -1);
     expect(selection.index).toBe(10);
-    expect(selection.frequency).toBe(1046.50);
+    expect(selection.frequency).toBe(1046.5);
     expect(selection.noteName).toBe('C6');
   });
 });

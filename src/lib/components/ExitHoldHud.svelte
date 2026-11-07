@@ -20,7 +20,9 @@
 
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
-  let strokeDashoffset = $derived(circumference * (1 - Math.max(0, Math.min(1, effectiveProgress))));
+  let strokeDashoffset = $derived(
+    circumference * (1 - Math.max(0, Math.min(1, effectiveProgress)))
+  );
   let formattedTime = $derived(`${Math.max(0, effectiveSec).toFixed(1)}s`);
 </script>
 
@@ -32,13 +34,7 @@
       <div class="hud-dial">
         <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
           <!-- Background track -->
-          <circle
-            class="ring-bg"
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke-width="8"
-          />
+          <circle class="ring-bg" cx="60" cy="60" r={radius} stroke-width="8" />
           <!-- Progress arc -->
           <circle
             class="ring-progress"

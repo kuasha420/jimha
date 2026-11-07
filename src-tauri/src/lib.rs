@@ -2,10 +2,10 @@ pub mod audio;
 pub mod kiosk;
 pub mod profile;
 
-use std::sync::Mutex;
 use audio::NativeAudioEngine;
 use kiosk::WindowEntry;
 use profile::{ChildProfile, ProfileSettings, ProfileStore};
+use std::sync::Mutex;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -38,7 +38,9 @@ async fn kiosk_handover(target_id: Option<String>) -> Result<bool, String> {
 
 #[tauri::command]
 fn kiosk_minimize(window: tauri::Window) -> Result<(), String> {
-    window.minimize().map_err(|e| format!("Failed to minimize window: {}", e))
+    window
+        .minimize()
+        .map_err(|e| format!("Failed to minimize window: {}", e))
 }
 
 #[tauri::command]

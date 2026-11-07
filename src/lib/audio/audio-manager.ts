@@ -1,7 +1,6 @@
 import { PENTATONIC_FREQUENCIES, getFrequencyForKey, type FrequencySelection } from './frequencies';
 import { synthesizeChimeSamples } from './synth-dsp';
-import { CHIME_WORKLET_PROCESSOR_CODE } from './chime-worklet';
-import { getInstrumentConfig, type InstrumentId } from '../content/instruments';
+import { type InstrumentId } from '../content/instruments';
 import { AmbientBgmEngine, type BgmMode } from './ambient-bgm';
 
 let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
@@ -25,7 +24,6 @@ export class JimhaAudioManager {
   private masterGain: GainNode | null = null;
   private bufferCache: Map<number, AudioBuffer> = new Map();
   private noteIndex: number = 0;
-  private isUnlocked: boolean = false;
   private instrument: InstrumentId = 'celesta';
   private unlockPromise: Promise<boolean> | null = null;
   private ambientBgm: AmbientBgmEngine = new AmbientBgmEngine();
@@ -49,7 +47,9 @@ export class JimhaAudioManager {
 
     try {
       if (!this.ctx) {
-        const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const AudioCtxClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (!AudioCtxClass) return false;
         this.ctx = new AudioCtxClass();
       }
@@ -64,7 +64,6 @@ export class JimhaAudioManager {
         await this.ctx.resume();
       }
 
-      this.isUnlocked = true;
       this.ensureBufferCache();
       this.ambientBgm.setContext(this.ctx);
       this.ambientBgm.start();
@@ -177,7 +176,7 @@ export class JimhaAudioManager {
   }
 
   public playStartupChime(): void {
-    const chord = [261.63, 392.00, 523.25];
+    const chord = [261.63, 392.0, 523.25];
     chord.forEach((freq, idx) => {
       setTimeout(() => {
         this.playFrequency(freq);
@@ -186,7 +185,7 @@ export class JimhaAudioManager {
   }
 
   public playCelebrationFanfare(): void {
-    const fanfare = [523.25, 659.25, 783.99, 1046.50];
+    const fanfare = [523.25, 659.25, 783.99, 1046.5];
     fanfare.forEach((freq, idx) => {
       setTimeout(() => {
         this.playFrequency(freq);
@@ -195,8 +194,8 @@ export class JimhaAudioManager {
   }
 
   public playStickerTapSound(index: number = 0): void {
-    const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
-    const freq = highPentatonic[index % highPentatonic.length];
+    const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+    const freq = highPentatonic[index % highPentatonic.length] ?? 523.25;
     this.playFrequency(freq);
   }
 
@@ -213,6 +212,5 @@ export class JimhaAudioManager {
       this.ctx = null;
     }
     this.bufferCache.clear();
-    this.isUnlocked = false;
   }
 }

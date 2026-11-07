@@ -36,11 +36,12 @@
 <td width="35%" valign="top">
 
 ### 🕹️ Game Overview
-*Smash any button, paint the universe!* A gentle, toddler-proof sensory playground crafted with love for Jimha.
 
-- **Reviews**: ⭐⭐⭐⭐⭐ *Overwhelmingly Positive* (100% Toddler & Baby Approved 💖)
+_Smash any button, paint the universe!_ A gentle, toddler-proof sensory playground crafted with love for Jimha.
+
+- **Reviews**: ⭐⭐⭐⭐⭐ _Overwhelmingly Positive_ (100% Toddler & Baby Approved 💖)
 - **Engine**: Tauri v2 + Pixi.js v8 + Svelte 5 + Rust
-- **Developer**: Arafat Zahan *(with Jimha & AI Agent)*
+- **Developer**: Arafat Zahan _(with Jimha & AI Agent)_
 - **Publisher**: Purrfect Universe
 - **Audio Engine**: Web Audio API Synthesizer (Zero GC)
 - **Display Target**: Wayland / X11 / SteamOS Fullscreen 60–120 FPS
@@ -79,7 +80,7 @@
 
 ## 📖 The Origin Story
 
-**Jimha** was born during Jimha's very first **agentic pair programming session**. 
+**Jimha** was born during Jimha's very first **agentic pair programming session**.
 
 Sitting with a Steam Deck handheld running Arch Linux, her father gave a simple, loving challenge to an autonomous AI agent: create a magical visual playground for Jimha that reacts to any random keyboard smash with giant bouncing characters, colorful companion emojis, and soothing sounds — without letting curious little hands accidentally close the game.
 
@@ -111,25 +112,30 @@ Today, **Jimha** has evolved into a next-generation sensory game engine powered 
 ## 🚀 Development & Verification
 
 ### Prerequisites
+
 - Node.js >= 20, pnpm >= 9
 - Rust >= 1.78 and Cargo
 
 ### Install Dependencies
+
 ```bash
 pnpm install
 ```
 
 ### Run Frontend in Development
+
 ```bash
 pnpm dev
 ```
 
 ### Run Desktop Application (Tauri v2)
+
 ```bash
 pnpm tauri dev
 ```
 
 ### Hermetic Verification Suite
+
 Run the unified frontend and native backend verification suites:
 
 ```bash
@@ -143,6 +149,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ---
 
 ## 📦 Legacy Prototype
+
 The original Python/PyQt6 prototype and its build artifacts are archived under [`legacy/python_prototype/`](legacy/python_prototype/).
 
 ---

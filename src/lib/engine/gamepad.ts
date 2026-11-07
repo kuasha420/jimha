@@ -57,22 +57,70 @@ export const STANDARD_BUTTON_MAP: Record<number, GamepadButtonId> = {
 };
 
 export const GAMEPAD_BUTTON_META: Record<GamepadButtonId, GamepadButtonInfo> = {
-  A: { id: 'A', label: 'A Button', emoji: '🟢', color: '#00E676', isRekkaToken: true, rekkaToken: 'A' },
-  B: { id: 'B', label: 'B Button', emoji: '🔴', color: '#FF1744', isRekkaToken: true, rekkaToken: 'B' },
+  A: {
+    id: 'A',
+    label: 'A Button',
+    emoji: '🟢',
+    color: '#00E676',
+    isRekkaToken: true,
+    rekkaToken: 'A',
+  },
+  B: {
+    id: 'B',
+    label: 'B Button',
+    emoji: '🔴',
+    color: '#FF1744',
+    isRekkaToken: true,
+    rekkaToken: 'B',
+  },
   X: { id: 'X', label: 'X Button', emoji: '🔵', color: '#2979FF', isRekkaToken: false },
   Y: { id: 'Y', label: 'Y Button', emoji: '🟡', color: '#FFEA00', isRekkaToken: false },
   LB: { id: 'LB', label: 'Left Bumper', emoji: '🛡️', color: '#E040FB', isRekkaToken: false },
   RB: { id: 'RB', label: 'Right Bumper', emoji: '⚔️', color: '#7C4DFF', isRekkaToken: false },
   LT: { id: 'LT', label: 'Left Trigger', emoji: '⚡', color: '#00E5FF', isRekkaToken: false },
   RT: { id: 'RT', label: 'Right Trigger', emoji: '🔥', color: '#FF3D00', isRekkaToken: false },
-  SELECT: { id: 'SELECT', label: 'Select / View', emoji: '✨', color: '#B388FF', isRekkaToken: false },
+  SELECT: {
+    id: 'SELECT',
+    label: 'Select / View',
+    emoji: '✨',
+    color: '#B388FF',
+    isRekkaToken: false,
+  },
   START: { id: 'START', label: 'Start / Menu', emoji: '🌟', color: '#FFD600', isRekkaToken: false },
   L3: { id: 'L3', label: 'Left Stick Click', emoji: '🕹️', color: '#76FF03', isRekkaToken: false },
   R3: { id: 'R3', label: 'Right Stick Click', emoji: '🎯', color: '#FF6D00', isRekkaToken: false },
-  UP: { id: 'UP', label: 'D-Pad Up', emoji: '⬆️', color: '#FF4081', isRekkaToken: true, rekkaToken: 'UP' },
-  DOWN: { id: 'DOWN', label: 'D-Pad Down', emoji: '⬇️', color: '#00E5FF', isRekkaToken: true, rekkaToken: 'DOWN' },
-  LEFT: { id: 'LEFT', label: 'D-Pad Left', emoji: '⬅️', color: '#FFD600', isRekkaToken: true, rekkaToken: 'LEFT' },
-  RIGHT: { id: 'RIGHT', label: 'D-Pad Right', emoji: '➡️', color: '#76FF03', isRekkaToken: true, rekkaToken: 'RIGHT' },
+  UP: {
+    id: 'UP',
+    label: 'D-Pad Up',
+    emoji: '⬆️',
+    color: '#FF4081',
+    isRekkaToken: true,
+    rekkaToken: 'UP',
+  },
+  DOWN: {
+    id: 'DOWN',
+    label: 'D-Pad Down',
+    emoji: '⬇️',
+    color: '#00E5FF',
+    isRekkaToken: true,
+    rekkaToken: 'DOWN',
+  },
+  LEFT: {
+    id: 'LEFT',
+    label: 'D-Pad Left',
+    emoji: '⬅️',
+    color: '#FFD600',
+    isRekkaToken: true,
+    rekkaToken: 'LEFT',
+  },
+  RIGHT: {
+    id: 'RIGHT',
+    label: 'D-Pad Right',
+    emoji: '➡️',
+    color: '#76FF03',
+    isRekkaToken: true,
+    rekkaToken: 'RIGHT',
+  },
   GUIDE: { id: 'GUIDE', label: 'Steam / Home', emoji: '👑', color: '#E040FB', isRekkaToken: false },
 };
 
@@ -112,7 +160,10 @@ export interface GamepadManagerOptions {
 export class GamepadManager {
   private options: GamepadManagerOptions;
   private previousButtonStates: Map<number, boolean[]> = new Map();
-  private previousAxisStates: Map<number, { up: boolean; down: boolean; left: boolean; right: boolean }> = new Map();
+  private previousAxisStates: Map<
+    number,
+    { up: boolean; down: boolean; left: boolean; right: boolean }
+  > = new Map();
   private rekkaBuffer: RekkaBuffer | null = null;
   private isPolling: boolean = false;
   private animFrameId: number | null = null;
@@ -160,6 +211,7 @@ export class GamepadManager {
 
       for (let btnIdx = 0; btnIdx < pad.buttons.length; btnIdx++) {
         const btn = pad.buttons[btnIdx];
+        if (!btn) continue;
         const isPressed = btn.pressed || btn.value > 0.5;
         const wasPressed = prevButtons[btnIdx] || false;
 
@@ -210,15 +262,47 @@ export class GamepadManager {
         }
 
         const deadzone = this.options.deadzone ?? 0.25;
-        const rawX = pad.axes[0];
-        const rawY = pad.axes[1];
+        const rawX = pad.axes[0] ?? 0;
+        const rawY = pad.axes[1] ?? 0;
         const axisX = Math.abs(rawX) > deadzone ? rawX : 0;
         const axisY = Math.abs(rawY) > deadzone ? rawY : 0;
 
-        this.checkVirtualAxis(pad, 'LEFT', axisX, false, prevAxis.left, deadzone, (val) => (prevAxis!.left = val));
-        this.checkVirtualAxis(pad, 'RIGHT', axisX, true, prevAxis.right, deadzone, (val) => (prevAxis!.right = val));
-        this.checkVirtualAxis(pad, 'UP', axisY, false, prevAxis.up, deadzone, (val) => (prevAxis!.up = val));
-        this.checkVirtualAxis(pad, 'DOWN', axisY, true, prevAxis.down, deadzone, (val) => (prevAxis!.down = val));
+        this.checkVirtualAxis(
+          pad,
+          'LEFT',
+          axisX,
+          false,
+          prevAxis.left,
+          deadzone,
+          (val) => (prevAxis!.left = val)
+        );
+        this.checkVirtualAxis(
+          pad,
+          'RIGHT',
+          axisX,
+          true,
+          prevAxis.right,
+          deadzone,
+          (val) => (prevAxis!.right = val)
+        );
+        this.checkVirtualAxis(
+          pad,
+          'UP',
+          axisY,
+          false,
+          prevAxis.up,
+          deadzone,
+          (val) => (prevAxis!.up = val)
+        );
+        this.checkVirtualAxis(
+          pad,
+          'DOWN',
+          axisY,
+          true,
+          prevAxis.down,
+          deadzone,
+          (val) => (prevAxis!.down = val)
+        );
       }
     }
   }
@@ -233,7 +317,7 @@ export class GamepadManager {
     setEngaged: (val: boolean) => void
   ): void {
     const meta = GAMEPAD_BUTTON_META[buttonId];
-    const engagementThreshold = 0.50;
+    const engagementThreshold = 0.5;
 
     let shouldEngage = false;
     let shouldRelease = false;
@@ -361,7 +445,10 @@ export class GamepadManager {
     return false;
   }
 
-  public isVirtualAxisEngaged(gamepadIndex: number, direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'): boolean {
+  public isVirtualAxisEngaged(
+    gamepadIndex: number,
+    direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
+  ): boolean {
     const axis = this.previousAxisStates.get(gamepadIndex);
     if (!axis) return false;
     if (direction === 'UP') return axis.up;

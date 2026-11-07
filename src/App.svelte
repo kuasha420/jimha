@@ -7,16 +7,8 @@
   import StickerBook from './lib/components/StickerBook.svelte';
   import UnlockCelebrationBanner from './lib/components/UnlockCelebrationBanner.svelte';
   import { JimhaAudioManager } from './lib/audio/audio-manager';
-  import {
-    RekkaBuffer,
-    KONAMI_SEQUENCE,
-    QUICK_SWITCH_SEQUENCE,
-    NAVIGATOR_SEQUENCE,
-  } from './lib/engine/rekka';
-  import {
-    GamepadManager,
-    type GamepadButtonEvent
-  } from './lib/engine/gamepad';
+  import { RekkaBuffer, KONAMI_SEQUENCE, QUICK_SWITCH_SEQUENCE } from './lib/engine/rekka';
+  import { GamepadManager, type GamepadButtonEvent } from './lib/engine/gamepad';
   import { STICKERS } from './lib/content/stickers';
   import type { InstrumentId } from './lib/content/instruments';
   import { APP_NAME } from './lib/constants';
@@ -156,7 +148,7 @@
 
   async function triggerQuickSwitchHandover() {
     const wins = await callTauri<WindowItem[]>('kiosk_query_windows');
-    const target = wins && wins.length > 0 ? wins[0].id : undefined;
+    const target = wins && wins.length > 0 ? wins[0]?.id : undefined;
     await triggerDesktopHandover(target);
   }
 
@@ -213,9 +205,18 @@
 
     // Prevent default actions for toddler-swallowed keys
     if (
-      ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Backspace', 'Escape', 'F5', 'F11'].includes(
-        event.code
-      ) ||
+      [
+        'Space',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+        'Tab',
+        'Backspace',
+        'Escape',
+        'F5',
+        'F11',
+      ].includes(event.code) ||
       (event.altKey && (event.key === 'F4' || event.key === 'Tab')) ||
       (event.ctrlKey && ['w', 'W', 'q', 'Q', 'r', 'R'].includes(event.key))
     ) {
@@ -555,7 +556,9 @@
     }
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
-    window.removeEventListener('contextmenu', (e: MouseEvent) => e.preventDefault(), { capture: true });
+    window.removeEventListener('contextmenu', (e: MouseEvent) => e.preventDefault(), {
+      capture: true,
+    });
     if (gamepadManager) {
       gamepadManager.detach();
       gamepadManager = null;
@@ -606,7 +609,7 @@
     childName={profile.child_name}
     totalKeyPresses={profile.total_key_presses}
     totalBubblesPopped={profile.total_bubbles_popped}
-    audioManager={audioManager}
+    {audioManager}
     onClose={() => {
       isStickerBookOpen = false;
     }}
@@ -625,9 +628,7 @@
   />
 
   {#if showEscapeParentHint}
-    <div class="escape-parent-hint" role="note">
-      (Parents: Hold Shift + Esc for 2.5s to exit)
-    </div>
+    <div class="escape-parent-hint" role="note">(Parents: Hold Shift + Esc for 2.5s to exit)</div>
   {/if}
 
   <header class="hud-header">
@@ -668,7 +669,13 @@
     overflow: hidden;
     background: #0d0f18;
     color: #ffffff;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
     user-select: none;
     -webkit-user-select: none;
   }
@@ -733,7 +740,10 @@
     background: linear-gradient(135deg, rgba(255, 214, 0, 0.2), rgba(124, 77, 255, 0.2));
     border-color: rgba(255, 214, 0, 0.4);
     color: #ffd600;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
   }
 
   .sticker-pill:hover {

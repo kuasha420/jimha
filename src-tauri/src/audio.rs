@@ -4,16 +4,16 @@ use std::process::{Child, Command};
 use std::sync::Mutex;
 
 const PENTATONIC_FREQUENCIES: [f32; 11] = [
-    261.63, // C4
-    293.66, // D4
-    329.63, // E4
-    392.00, // G4
-    440.00, // A4
-    523.25, // C5
-    587.33, // D5
-    659.25, // E5
-    783.99, // G5
-    880.00, // A5
+    261.63,  // C4
+    293.66,  // D4
+    329.63,  // E4
+    392.00,  // G4
+    440.00,  // A4
+    523.25,  // C5
+    587.33,  // D5
+    659.25,  // E5
+    783.99,  // G5
+    880.00,  // A5
     1046.50, // C6
 ];
 
@@ -31,9 +31,18 @@ fn resolve_cache_dir() -> PathBuf {
         }
     }
     if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home).join(".cache").join("jimha").join("audio_cache_v2");
+        return PathBuf::from(home)
+            .join(".cache")
+            .join("jimha")
+            .join("audio_cache_v2");
     }
     PathBuf::from("/tmp").join("jimha").join("audio_cache_v2")
+}
+
+impl Default for NativeAudioEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NativeAudioEngine {
@@ -41,8 +50,8 @@ impl NativeAudioEngine {
         let cache_dir = resolve_cache_dir();
         let _ = fs::create_dir_all(&cache_dir);
 
-        let player = crate::kiosk::find_binary("pw-play")
-            .or_else(|| crate::kiosk::find_binary("paplay"));
+        let player =
+            crate::kiosk::find_binary("pw-play").or_else(|| crate::kiosk::find_binary("paplay"));
 
         let engine = Self {
             cache_dir,
@@ -58,7 +67,9 @@ impl NativeAudioEngine {
 
     fn ensure_chime_cache(&self) {
         for (i, &freq) in PENTATONIC_FREQUENCIES.iter().enumerate() {
-            let wav_path = self.cache_dir.join(format!("chime_{}_{}.wav", i, freq as u32));
+            let wav_path = self
+                .cache_dir
+                .join(format!("chime_{}_{}.wav", i, freq as u32));
             if !wav_path.exists() {
                 Self::write_chime_wav(&wav_path, freq);
             }
@@ -85,9 +96,19 @@ impl NativeAudioEngine {
             let mut sum_r = 0.0f32;
 
             for (h, (&mult, &gain)) in mults.iter().zip(gains.iter()).enumerate() {
-                let decay = if mult <= 2.0 { decay_body } else { decay_shimmer };
+                let decay = if mult <= 2.0 {
+                    decay_body
+                } else {
+                    decay_shimmer
+                };
                 let phase_l = if h == 2 { phase_offset } else { 0.0 };
-                let phase_r = if h == 0 { phase_offset * 0.5 } else if h == 3 { phase_offset } else { 0.0 };
+                let phase_r = if h == 0 {
+                    phase_offset * 0.5
+                } else if h == 3 {
+                    phase_offset
+                } else {
+                    0.0
+                };
 
                 let val = (2.0 * std::f32::consts::PI * (mult * freq) * t).sin() * gain * decay;
                 sum_l += (val + phase_l.sin() * 0.1) * decay;
@@ -111,8 +132,8 @@ impl NativeAudioEngine {
         header.extend_from_slice(&file_size.to_le_bytes());
         header.extend_from_slice(b"WAVEfmt ");
         header.extend_from_slice(&16u32.to_le_bytes()); // Subchunk1Size (16 for PCM)
-        header.extend_from_slice(&1u16.to_le_bytes());  // AudioFormat (1 = PCM)
-        header.extend_from_slice(&2u16.to_le_bytes());  // NumChannels (2)
+        header.extend_from_slice(&1u16.to_le_bytes()); // AudioFormat (1 = PCM)
+        header.extend_from_slice(&2u16.to_le_bytes()); // NumChannels (2)
         header.extend_from_slice(&sample_rate.to_le_bytes());
         header.extend_from_slice(&byte_rate.to_le_bytes());
         header.extend_from_slice(&block_align.to_le_bytes());
@@ -144,7 +165,9 @@ impl NativeAudioEngine {
         drop(idx_lock);
 
         let freq = PENTATONIC_FREQUENCIES[idx];
-        let wav_path = self.cache_dir.join(format!("chime_{}_{}.wav", idx, freq as u32));
+        let wav_path = self
+            .cache_dir
+            .join(format!("chime_{}_{}.wav", idx, freq as u32));
         if !wav_path.exists() {
             Self::write_chime_wav(&wav_path, freq);
         }
@@ -161,11 +184,19 @@ impl NativeAudioEngine {
             let is_pw = player.to_string_lossy().contains("pw-play");
             let mut cmd = Command::new(player);
             if is_pw {
-                cmd.args(["--media-role=Game", "--volume=0.8", wav_path.to_str().unwrap()]);
+                cmd.args([
+                    "--media-role=Game",
+                    "--volume=0.8",
+                    wav_path.to_str().unwrap(),
+                ]);
             } else {
                 cmd.args(["--media-role=Game", wav_path.to_str().unwrap()]);
             }
-            if let Ok(child) = cmd.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn() {
+            if let Ok(child) = cmd
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+            {
                 pool.push(child);
             }
         }
@@ -213,4 +244,3 @@ mod tests {
         let _ = std::fs::remove_file(test_path);
     }
 }
-

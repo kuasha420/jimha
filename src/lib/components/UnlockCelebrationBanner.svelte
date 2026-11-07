@@ -10,13 +10,7 @@
     onOpenStickerBook?: () => void;
   }
 
-  const {
-    stickerId,
-    unlockedStickerId,
-    visible,
-    onDismiss,
-    onOpenStickerBook
-  }: Props = $props();
+  const { stickerId, unlockedStickerId, visible, onDismiss, onOpenStickerBook }: Props = $props();
 
   const effectiveId = $derived(stickerId || unlockedStickerId || null);
   const sticker = $derived(effectiveId ? getStickerById(effectiveId) : null);
@@ -200,7 +194,8 @@
   }
 
   @keyframes cue-pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.75;
       transform: translateY(0);
     }
@@ -227,7 +222,8 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% {
+    0%,
+    100% {
       transform: scale(1);
     }
     50% {

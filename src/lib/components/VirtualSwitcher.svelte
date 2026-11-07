@@ -12,26 +12,25 @@
     onClose: () => void;
   }
 
-  let {
-    windows = [],
-    selectedIndex = $bindable(0),
-    onSelect,
-    onClose,
-  }: Props = $props();
+  let { windows = [], selectedIndex = $bindable(0), onSelect, onClose }: Props = $props();
 
   let total = $derived(windows.length);
   let safeIndex = $derived(total > 0 ? ((selectedIndex % total) + total) % total : 0);
   let currentWindow = $derived(
     total > 0
-      ? windows[safeIndex]
+      ? (windows[safeIndex] ?? {
+          id: 'desktop',
+          title: 'Desktop / Workspace',
+          icon: 'user-desktop',
+        })
       : { id: 'desktop', title: 'Desktop / Workspace', icon: 'user-desktop' }
   );
 
   let prevWindow = $derived(
-    total > 1 ? windows[(((safeIndex - 1) % total) + total) % total] : null
+    total > 1 ? (windows[(((safeIndex - 1) % total) + total) % total] ?? null) : null
   );
   let nextWindow = $derived(
-    total > 1 ? windows[(((safeIndex + 1) % total) + total) % total] : null
+    total > 1 ? (windows[(((safeIndex + 1) % total) + total) % total] ?? null) : null
   );
 
   export function cycleNext() {
@@ -58,25 +57,58 @@
 
   function getFallbackEmoji(title: string, icon: string): string {
     const t = (title + ' ' + icon).toLowerCase();
-    if (t.includes('terminal') || t.includes('konsole') || t.includes('kitty') || t.includes('alacritty') || t.includes('zsh')) {
+    if (
+      t.includes('terminal') ||
+      t.includes('konsole') ||
+      t.includes('kitty') ||
+      t.includes('alacritty') ||
+      t.includes('zsh')
+    ) {
       return '📟';
     }
-    if (t.includes('firefox') || t.includes('chrome') || t.includes('browser') || t.includes('edge') || t.includes('brave')) {
+    if (
+      t.includes('firefox') ||
+      t.includes('chrome') ||
+      t.includes('browser') ||
+      t.includes('edge') ||
+      t.includes('brave')
+    ) {
       return '🌐';
     }
-    if (t.includes('discord') || t.includes('vesktop') || t.includes('slack') || t.includes('telegram')) {
+    if (
+      t.includes('discord') ||
+      t.includes('vesktop') ||
+      t.includes('slack') ||
+      t.includes('telegram')
+    ) {
       return '💬';
     }
-    if (t.includes('code') || t.includes('antigravity') || t.includes('cursor') || t.includes('editor')) {
+    if (
+      t.includes('code') ||
+      t.includes('antigravity') ||
+      t.includes('cursor') ||
+      t.includes('editor')
+    ) {
       return '✨';
     }
     if (t.includes('steam') || t.includes('game') || t.includes('lutris') || t.includes('heroic')) {
       return '🎮';
     }
-    if (t.includes('music') || t.includes('spotify') || t.includes('audio') || t.includes('vlc') || t.includes('media')) {
+    if (
+      t.includes('music') ||
+      t.includes('spotify') ||
+      t.includes('audio') ||
+      t.includes('vlc') ||
+      t.includes('media')
+    ) {
       return '🎵';
     }
-    if (t.includes('dolphin') || t.includes('file') || t.includes('nautilus') || t.includes('folder')) {
+    if (
+      t.includes('dolphin') ||
+      t.includes('file') ||
+      t.includes('nautilus') ||
+      t.includes('folder')
+    ) {
       return '📁';
     }
     if (t.includes('setting') || t.includes('config') || t.includes('control')) {
@@ -88,7 +120,13 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="switcher-backdrop" onclick={handleBackdropClick} role="dialog" aria-modal="true" tabindex="-1">
+<div
+  class="switcher-backdrop"
+  onclick={handleBackdropClick}
+  role="dialog"
+  aria-modal="true"
+  tabindex="-1"
+>
   <div class="switcher-container">
     <h2 class="switcher-title">🕹️ REKKA VIRTUAL WINDOW SWITCHER 🕹️</h2>
 
@@ -208,7 +246,9 @@
     gap: 0.75rem;
     padding: 1rem;
     cursor: pointer;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease;
     color: rgba(255, 255, 255, 0.65);
   }
 
@@ -234,7 +274,9 @@
     text-align: center;
     cursor: pointer;
     font-family: inherit;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
   }
 
   .active-card:hover {
@@ -266,7 +308,8 @@
   }
 
   @keyframes icon-float {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0);
     }
     50% {

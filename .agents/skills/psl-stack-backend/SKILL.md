@@ -4,6 +4,7 @@ description: >-
   Backend architectural patterns, multi-tenant isolation, and data layer safety invariants.
   Use when designing backend services, database migrations, API routes, or data access repositories.
 ---
+
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Arafat Zahan (@kuasha420) -->
 <!-- Corporate Stewardship & Infrastructure: Purrfect Software Limited (PSL) -->
@@ -18,6 +19,7 @@ This skill codifies backend engineering patterns, multi-tenant isolation guarant
 ## 1. Multi-Tenant Query & Mutation Isolation
 
 ### 1.1 Mandatory Tenant Scoping
+
 - In multi-tenant systems, every database query, update, and deletion MUST explicitly scope to the authenticated tenant/workspace/organization identifier.
 - Never write unbounded queries that omit tenant filters:
   ```sql
@@ -30,6 +32,7 @@ This skill codifies backend engineering patterns, multi-tenant isolation guarant
 - In ORMs or repositories, enforce tenancy at the repository base or query context layer, making tenant omissions impossible at compile or runtime.
 
 ### 1.2 Authorization at the Gate
+
 - Verify tenant membership before executing any service operation.
 - Token claims or session tenant IDs must originate from verified cryptographic signatures, never from unvalidated user client request bodies or query params.
 
@@ -38,6 +41,7 @@ This skill codifies backend engineering patterns, multi-tenant isolation guarant
 ## 2. Database Migrations & Schema Evolution
 
 ### 2.1 Forward-Compatible, Non-Destructive Migrations
+
 - All schema migrations must be forward-compatible and executable without service downtime.
 - Follow the expand-contract pattern:
   1. **Expand**: Add new nullable columns or tables. Deploy application code reading both old and new columns, writing to both.
@@ -46,6 +50,7 @@ This skill codifies backend engineering patterns, multi-tenant isolation guarant
 - Never drop columns, rename tables, or add `NOT NULL` columns without default values in a single breaking migration.
 
 ### 2.2 Atomic Migration Execution
+
 - Wrap migration steps in transactions where supported by the database engine (e.g. PostgreSQL DDL transactions).
 - For large indexes, use concurrent creation (`CREATE INDEX CONCURRENTLY`) outside transaction blocks to prevent locking production tables.
 
@@ -54,12 +59,15 @@ This skill codifies backend engineering patterns, multi-tenant isolation guarant
 ## 3. Layered Architectural Separation
 
 ### 3.1 Controller-Service-Repository Segregation
+
 Maintain strict separation of responsibilities:
+
 - **Controllers / Routers**: Responsible for HTTP/RPC transport, input deserialization, boundary validation (via schemas), authentication, and HTTP status codes. No database calls or business rules.
 - **Services**: Responsible for business workflows, domain validation, orchestration, and transactional units of work. Independent of HTTP transport.
 - **Repositories**: Responsible for database access, SQL construction, query optimization, and tenant scoping. No HTTP objects.
 
 ### 3.2 Null and Undefined Normalization
+
 - Normalize database `NULL` values to application domain models consistently.
 - Explicitly map optional fields when serializing JSON responses (`data.bio ?? null` or omit via schema).
 

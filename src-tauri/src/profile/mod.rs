@@ -65,14 +65,19 @@ impl ProfileStore {
     pub fn load_or_default(path: PathBuf) -> Self {
         if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(content) => match serde_json::from_str::<ChildProfile>(&content) {
-                    Ok(profile) => return Self { path, profile },
-                    Err(err) => {
-                        eprintln!("[JimhaProfile] Corrupted profile JSON: {}. Re-initializing default.", err);
+                Ok(content) => {
+                    match serde_json::from_str::<ChildProfile>(&content) {
+                        Ok(profile) => return Self { path, profile },
+                        Err(err) => {
+                            eprintln!("[JimhaProfile] Corrupted profile JSON: {}. Re-initializing default.", err);
+                        }
                     }
-                },
+                }
                 Err(err) => {
-                    eprintln!("[JimhaProfile] Failed to read profile: {}. Re-initializing default.", err);
+                    eprintln!(
+                        "[JimhaProfile] Failed to read profile: {}. Re-initializing default.",
+                        err
+                    );
                 }
             }
         }
@@ -82,7 +87,10 @@ impl ProfileStore {
             profile: ChildProfile::default(),
         };
         if let Err(err) = store.save() {
-            eprintln!("[JimhaProfile] Warning: Failed to persist initial default profile: {}", err);
+            eprintln!(
+                "[JimhaProfile] Warning: Failed to persist initial default profile: {}",
+                err
+            );
         }
         store
     }
@@ -90,7 +98,8 @@ impl ProfileStore {
     pub fn save(&self) -> Result<(), String> {
         if let Some(parent) = self.path.parent() {
             if !parent.exists() {
-                fs::create_dir_all(parent).map_err(|e| format!("Failed to create profile dir: {}", e))?;
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create profile dir: {}", e))?;
             }
         }
         let json = serde_json::to_string_pretty(&self.profile)
@@ -105,7 +114,11 @@ impl ProfileStore {
         Ok(self.profile.clone())
     }
 
-    pub fn record_event(&mut self, event_type: &str, key: Option<&str>) -> Result<Option<String>, String> {
+    pub fn record_event(
+        &mut self,
+        event_type: &str,
+        key: Option<&str>,
+    ) -> Result<Option<String>, String> {
         let mut newly_unlocked: Option<String> = None;
 
         match event_type {
@@ -271,8 +284,14 @@ mod tests {
 
         let unlocked = store.record_event("key_press", Some("j")).unwrap();
         assert!(unlocked.is_some());
-        assert!(store.profile().unlocked_stickers.contains(&"first_spark".to_string()));
-        assert!(store.profile().unlocked_stickers.contains(&"jimha_crown".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"first_spark".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"jimha_crown".to_string()));
 
         let _ = fs::remove_file(&path);
     }
@@ -286,11 +305,17 @@ mod tests {
         for _ in 0..9 {
             let _ = store.record_event("bubble_pop", None).unwrap();
         }
-        assert!(!store.profile().unlocked_stickers.contains(&"bubble_popper".to_string()));
+        assert!(!store
+            .profile()
+            .unlocked_stickers
+            .contains(&"bubble_popper".to_string()));
 
         let unlocked_10th = store.record_event("bubble_pop", None).unwrap();
         assert_eq!(unlocked_10th, Some("bubble_popper".to_string()));
-        assert!(store.profile().unlocked_stickers.contains(&"bubble_popper".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"bubble_popper".to_string()));
 
         let _ = fs::remove_file(&path);
     }
@@ -302,16 +327,28 @@ mod tests {
         let mut store = ProfileStore::load_or_default(path.clone());
 
         store.record_event("key_press", Some("h")).unwrap();
-        assert!(store.profile().unlocked_stickers.contains(&"jim_heart".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"jim_heart".to_string()));
 
         store.record_event("key_press", Some("0")).unwrap();
-        assert!(store.profile().unlocked_stickers.contains(&"star_counter".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"star_counter".to_string()));
 
         store.record_event("key_press", Some("r")).unwrap();
-        assert!(store.profile().unlocked_stickers.contains(&"rainbow_explorer".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"rainbow_explorer".to_string()));
 
         store.record_event("konami", None).unwrap();
-        assert!(store.profile().unlocked_stickers.contains(&"konami_champion".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"konami_champion".to_string()));
 
         let _ = fs::remove_file(&path);
     }

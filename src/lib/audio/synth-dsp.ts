@@ -4,7 +4,11 @@
  * and stereo phase spread from legacy sound_synth.py.
  */
 
-import { getInstrumentConfig, type InstrumentConfig, type InstrumentId } from '../content/instruments';
+import {
+  getInstrumentConfig,
+  type InstrumentConfig,
+  type InstrumentId,
+} from '../content/instruments';
 
 export interface SynthesizedChime {
   left: Float32Array;
@@ -21,9 +25,7 @@ export function synthesizeChimeSamples(
   instrumentOrId: InstrumentId | InstrumentConfig = 'celesta'
 ): SynthesizedChime {
   const config =
-    typeof instrumentOrId === 'string'
-      ? getInstrumentConfig(instrumentOrId)
-      : instrumentOrId;
+    typeof instrumentOrId === 'string' ? getInstrumentConfig(instrumentOrId) : instrumentOrId;
 
   const nSamples = Math.floor(sampleRate * duration);
   const left = new Float32Array(nSamples);
@@ -53,8 +55,8 @@ export function synthesizeChimeSamples(
     let sumR = 0;
 
     for (let h = 0; h < multipliers.length; h++) {
-      const mult = multipliers[h];
-      const gain = gains[h];
+      const mult = multipliers[h] ?? 1.0;
+      const gain = gains[h] ?? 0.0;
       const decay = mult <= 2.0 ? decayBody : decayShimmer;
 
       // Slight stereo spread on overtones
@@ -80,8 +82,10 @@ export function synthesizeChimeSamples(
   // Normalize to 92% full scale (-0.7 dB) to prevent clipping while maximizing clarity
   const scale = 0.92 / maxPeak;
   for (let i = 0; i < nSamples; i++) {
-    left[i] = Math.max(-1.0, Math.min(1.0, left[i] * scale));
-    right[i] = Math.max(-1.0, Math.min(1.0, right[i] * scale));
+    const l = left[i];
+    const r = right[i];
+    if (l !== undefined) left[i] = Math.max(-1.0, Math.min(1.0, l * scale));
+    if (r !== undefined) right[i] = Math.max(-1.0, Math.min(1.0, r * scale));
   }
 
   return {
@@ -89,6 +93,6 @@ export function synthesizeChimeSamples(
     right,
     sampleRate,
     duration,
-    peak: maxPeak
+    peak: maxPeak,
   };
 }

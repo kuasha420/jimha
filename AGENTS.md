@@ -11,7 +11,8 @@ These operational rules govern cognitive behavior and human-in-the-loop alignmen
 ---
 
 ## 1. Explicit Project Command Dictionary (The Victory Pattern)
-*Explicit CLI palettes yield 10x lower human intervention rates:*
+
+_Explicit CLI palettes yield 10x lower human intervention rates:_
 
 ```bash
 # 🩺 Environment Diagnostics & Auto-Healing
@@ -34,6 +35,7 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 2. Mandatory Project-Native Automated Verification Contract
+
 1. **Mandatory Automated Verification**:
    - Never declare a task "complete", "fixed", or "verified" without executing the active project's native test runner (e.g. `pnpm test`, `pytest`, `cargo test`, `go test`) and asserting exit code 0.
 2. **Sub-Second to Fast Benchmark Invariant**:
@@ -44,6 +46,7 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 3. Terminal Invariants & Grep Probing Exception (ADR-013)
+
 1. **Pre-flight Tool Availability (Mitigate Exit Code 127)**:
    - Verify tool availability (`command -v <bin>`) or handle fallback paths gracefully.
 2. **Context Flood Prevention (The 200+ Step Cliff)**:
@@ -56,7 +59,9 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 4. Surgical Contiguous Edits Invariant (99.9% Tool Success)
-*Audit revealed single contiguous block replacements achieve 99.9% tool success:*
+
+_Audit revealed single contiguous block replacements achieve 99.9% tool success:_
+
 1. Always make single contiguous block replacements for targeted edits (`replace_file_content`).
 2. Do NOT overwrite whole files when modifying specific functions, classes, or blocks.
 3. Preserve surrounding comments, docstrings, imports, and formatting.
@@ -64,7 +69,9 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 5. Context Preservation & Subagent Ladder
-*Trajectories <50 steps / <50k tokens maintain 0.8 errors/session; >200 steps suffer a 20x error spike:*
+
+_Trajectories <50 steps / <50k tokens maintain 0.8 errors/session; >200 steps suffer a 20x error spike:_
+
 1. **Keep Primary Context in the Healthy Zone (<50k tokens)**.
 2. **Anti-Loop Heuristics**:
    - Do NOT repeatedly call `view_file` on the same file within consecutive steps.
@@ -77,6 +84,7 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 6. The Artifact-First Planning Invariant (ADR-012) & Dynamic Aperture
+
 1. **Anti-Chatbot Seduction**:
    - Never propose multi-component architectural changes or execution plans in raw conversational chat turns.
    - All non-trivial proposals must immediately crystallize into an interactive `implementation_plan.md` artifact before requesting operator confirmation.
@@ -90,6 +98,7 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 7. The 5 Ground Rules
+
 1. **Rule 1 (Zero Error Swallowing)**: Never hide or swallow errors. Zero bare `except:`, no unhandled pipe errors (`set -euo pipefail`).
 2. **Rule 2 (No Product Homework in Tests)**: Never redefine product logic or duplicate production calculations in test asserts.
 3. **Rule 3 (Complete Deliveries)**: Deliver complete packages (code + types + tests + docs). No partial drafts or broken stubs.
@@ -99,7 +108,9 @@ agyis sync                                     # Audit & synchronize active sess
 ---
 
 ## 8. Human-in-the-Loop & Steering Alignment
+
 1. **Anti-Drift Commitment**: Anchor all implementation decisions to the agreed plan. If novel obstacles arise, pause and present options.
 2. **Proactive Confirmation Gates**: When encountering destructive operations (file deletion, git branch force-push, node reboots), pause for explicit review.
 3. **Clear Error Reporting**: If a command fails twice, stop thrashing. State the error concisely and propose a concrete path forward.
+
 <!-- End AGYIS-HARNESS -->

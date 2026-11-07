@@ -44,7 +44,7 @@ export function spawnParticleBurst(
     const vy = Math.sin(angle) * speed - (50.0 + Math.random() * 150.0);
     const size = 8.0 + Math.random() * 16.0;
     const color = getRandomColor(palette);
-    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const shape = shapes[Math.floor(Math.random() * shapes.length)] ?? 'circle';
     const decayRate = 0.4 + Math.random() * 0.5; // 0.4 - 0.9 per second
     const rotSpeed = (Math.random() * 720.0 - 360.0) * (Math.PI / 180.0); // rad/s
 
@@ -59,21 +59,17 @@ export function spawnParticleBurst(
       life: 1.0,
       decayRate,
       rotation: Math.random() * 2 * Math.PI,
-      rotSpeed
+      rotSpeed,
     });
   }
 
   return particles;
 }
 
-export function spawnBubble(
-  x: number,
-  y: number,
-  color?: string
-): FloatingBubble {
+export function spawnBubble(x: number, y: number, color?: string): FloatingBubble {
   const radius = 16.0 + Math.random() * 32.0; // 16 to 48 px
   const chosenColor = color || getRandomColor();
-  const vx = (Math.random() * 80.0) - 40.0; // -40 to +40 px/s
+  const vx = Math.random() * 80.0 - 40.0; // -40 to +40 px/s
   const vy = -(40.0 + Math.random() * 80.0); // -40 to -120 px/s (float upwards)
 
   return {
@@ -83,7 +79,7 @@ export function spawnBubble(
     vy,
     radius,
     color: chosenColor,
-    life: 1.0
+    life: 1.0,
   };
 }
 
@@ -95,8 +91,7 @@ export function updateParticles(
 ): Particle[] {
   const alive: Particle[] = [];
 
-  for (let i = 0; i < particles.length; i++) {
-    const p = particles[i];
+  for (const p of particles) {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.vy += gravity * dt;
@@ -120,8 +115,7 @@ export function updateBubbles(
 ): FloatingBubble[] {
   const alive: FloatingBubble[] = [];
 
-  for (let i = 0; i < bubbles.length; i++) {
-    const b = bubbles[i];
+  for (const b of bubbles) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= 0.15 * dt;

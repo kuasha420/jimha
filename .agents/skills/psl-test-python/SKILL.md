@@ -5,6 +5,7 @@ description: >-
   pytest, unittest discovery, clean-room temporary directory isolation, sub-second benchmark invariants,
   and zero error-swallowing execution standards.
 ---
+
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Arafat Zahan (@kuasha420) -->
 <!-- Corporate Stewardship & Infrastructure: Purrfect Software Limited (PSL) -->
@@ -19,6 +20,7 @@ This skill establishes standardized execution contracts and hermetic benchmarkin
 ## 1. Test Runner Invariants
 
 ### 1.1 Hermetic Test Invocation
+
 - Always invoke the test suite via the unified CLI or standard hermetic module runners:
   ```bash
   # Primary test suite runner
@@ -33,11 +35,13 @@ This skill establishes standardized execution contracts and hermetic benchmarkin
 - Target hermetic CPython 3.12+ runtimes (`python3` or `uv run python`).
 
 ### 1.2 Sub-Second Benchmark Invariant (ADR-015)
+
 - Automated unit test suites must complete execution in strictly **under 1.0 second**.
 - Enforce in-memory mocks, deterministic loops, and zero artificial `time.sleep()` delays.
 - Eliminate external network requests and unnecessary disk thrashing.
 
 ### 1.3 Clean-Room State Isolation
+
 - Test cases must never write to repository directories or alter shared user configuration.
 - Always use `tempfile.TemporaryDirectory()` in `setUp()` and clean it up in `tearDown()`:
   ```python

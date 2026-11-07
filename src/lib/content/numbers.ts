@@ -62,8 +62,8 @@ export function getStarString(count: number): string {
 }
 
 export const NUMBERS_0_20: NumberContent[] = Array.from({ length: 21 }, (_, i) => {
-  const word = NUMBER_WORDS[i];
-  const color = NUMBER_COLORS[i % NUMBER_COLORS.length];
+  const word = NUMBER_WORDS[i] ?? 'Zero';
+  const color = NUMBER_COLORS[i % NUMBER_COLORS.length] ?? '#00E5FF';
   const starCount = i;
   const stars = getStarString(i);
   const subtitle =

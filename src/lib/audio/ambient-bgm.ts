@@ -108,7 +108,7 @@ export class AmbientBgmEngine {
       targetGain = 0.05; // Duck to 0.05 during active key smashing
       targetCutoff = 3200;
     } else if (this.mode === 'ui') {
-      targetGain = 0.10; // Warm lowpass ambient tone
+      targetGain = 0.1; // Warm lowpass ambient tone
       targetCutoff = 750;
     } else {
       targetGain = 0.15; // Idle ambient chime drops
@@ -149,7 +149,8 @@ export class AmbientBgmEngine {
 
     try {
       // Pick random pentatonic frequency from C4 to C6
-      const freq = PENTATONIC_FREQUENCIES[Math.floor(Math.random() * PENTATONIC_FREQUENCIES.length)];
+      const freq =
+        PENTATONIC_FREQUENCIES[Math.floor(Math.random() * PENTATONIC_FREQUENCIES.length)] ?? 523.25;
       const now = this.ctx.currentTime;
 
       const osc = this.ctx.createOscillator();

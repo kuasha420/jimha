@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  RekkaBuffer,
-  KONAMI_SEQUENCE,
-  QUICK_SWITCH_SEQUENCE,
-  NAVIGATOR_SEQUENCE,
-} from './rekka';
+import { RekkaBuffer, KONAMI_SEQUENCE, QUICK_SWITCH_SEQUENCE, NAVIGATOR_SEQUENCE } from './rekka';
 
 describe('RekkaBuffer Arcade Combo Engine', () => {
   let rekka: RekkaBuffer;

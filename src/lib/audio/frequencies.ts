@@ -4,14 +4,14 @@ export const PENTATONIC_FREQUENCIES: readonly number[] = [
   261.63, // C4
   293.66, // D4
   329.63, // E4
-  392.00, // G4
-  440.00, // A4
+  392.0, // G4
+  440.0, // A4
   523.25, // C5
   587.33, // D5
   659.25, // E5
   783.99, // G5
-  880.00, // A5
-  1046.50, // C6
+  880.0, // A5
+  1046.5, // C6
 ];
 
 export interface FrequencySelection {
@@ -21,15 +21,26 @@ export interface FrequencySelection {
 }
 
 export const NOTE_NAMES: readonly string[] = [
-  'C4', 'D4', 'E4', 'G4', 'A4',
-  'C5', 'D5', 'E5', 'G5', 'A5',
-  'C6'
+  'C4',
+  'D4',
+  'E4',
+  'G4',
+  'A4',
+  'C5',
+  'D5',
+  'E5',
+  'G5',
+  'A5',
+  'C6',
 ];
 
 /**
  * Maps a key or sequential index to a soothing pentatonic frequency.
  */
-export function getFrequencyForKey(keyText: string = '', noteIndex: number = 0): FrequencySelection {
+export function getFrequencyForKey(
+  keyText: string = '',
+  noteIndex: number = 0
+): FrequencySelection {
   const len = PENTATONIC_FREQUENCIES.length;
   let idx: number;
 
@@ -43,8 +54,8 @@ export function getFrequencyForKey(keyText: string = '', noteIndex: number = 0):
   idx = ((idx % len) + len) % len;
 
   return {
-    frequency: PENTATONIC_FREQUENCIES[idx],
+    frequency: PENTATONIC_FREQUENCIES[idx] ?? 523.25,
     index: idx,
-    noteName: NOTE_NAMES[idx]
+    noteName: NOTE_NAMES[idx] ?? 'C5',
   };
 }

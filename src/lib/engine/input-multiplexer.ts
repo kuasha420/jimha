@@ -75,7 +75,7 @@ export function hitTestAndPop(
 ): HitTestResult {
   for (let i = 0; i < bubbles.length; i++) {
     const bubble = bubbles[i];
-    if (hitTestBubble(point, bubble, marginFactor)) {
+    if (bubble && hitTestBubble(point, bubble, marginFactor)) {
       const remainingBubbles = bubbles.filter((_, idx) => idx !== i);
       return { hitBubble: bubble, remainingBubbles };
     }

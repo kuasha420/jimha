@@ -137,18 +137,18 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(onButtonDown).not.toHaveBeenCalled();
 
     // 2. Partial deflection below engagement threshold: 0.40 still not engaged
-    gm.poll([createMockGamepad(0, [], [0.40, 0])]);
+    gm.poll([createMockGamepad(0, [], [0.4, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(false);
     expect(onButtonDown).not.toHaveBeenCalled();
 
     // 3. Deflection reaching engagement threshold: 0.60 engages
-    gm.poll([createMockGamepad(0, [], [0.60, 0])]);
+    gm.poll([createMockGamepad(0, [], [0.6, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(true);
     expect(onButtonDown).toHaveBeenCalledTimes(1);
     const downEvent = onButtonDown.mock.calls[0][0];
     expect(downEvent.buttonId).toBe('RIGHT');
     expect(downEvent.pressed).toBe(true);
-    expect(downEvent.value).toBe(0.60);
+    expect(downEvent.value).toBe(0.6);
 
     // 4. Slight stick relaxation to 0.35: hysteresis holds engagement
     gm.poll([createMockGamepad(0, [], [0.35, 0])]);
@@ -156,7 +156,7 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(onButtonUp).not.toHaveBeenCalled();
 
     // 5. Stick returned to neutral at 0.10: released
-    gm.poll([createMockGamepad(0, [], [0.10, 0])]);
+    gm.poll([createMockGamepad(0, [], [0.1, 0])]);
     expect(gm.isVirtualAxisEngaged(0, 'RIGHT')).toBe(false);
     expect(onButtonUp).toHaveBeenCalledTimes(1);
     const upEvent = onButtonUp.mock.calls[0][0];

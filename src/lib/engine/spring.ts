@@ -11,10 +11,7 @@ export interface SpringConfig {
   finalScale?: number;
 }
 
-export function calculateElasticScale(
-  cardAge: number,
-  config: SpringConfig = {}
-): number {
+export function calculateElasticScale(cardAge: number, config: SpringConfig = {}): number {
   const duration = config.duration ?? 0.35;
   const initialScale = config.initialScale ?? 0.2;
   const overshootMultiplier = config.overshootScale ?? 0.35;
@@ -41,7 +38,11 @@ export function calculateElasticScale(
 /**
  * Calculates a smooth cubic-bezier or damped alpha fade for card life.
  */
-export function calculateCardAlpha(cardAge: number, fadeStart: number = 3.0, fadeDuration: number = 1.5): number {
+export function calculateCardAlpha(
+  cardAge: number,
+  fadeStart: number = 3.0,
+  fadeDuration: number = 1.5
+): number {
   if (cardAge < fadeStart) return 1.0;
   const elapsed = cardAge - fadeStart;
   if (elapsed >= fadeDuration) return 0.2; // Keep minimum visibility

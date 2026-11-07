@@ -16,12 +16,7 @@ export const KONAMI_SEQUENCE: readonly string[] = [
   'A',
 ] as const;
 
-export const QUICK_SWITCH_SEQUENCE: readonly string[] = [
-  'UP',
-  'UP',
-  'DOWN',
-  'DOWN',
-] as const;
+export const QUICK_SWITCH_SEQUENCE: readonly string[] = ['UP', 'UP', 'DOWN', 'DOWN'] as const;
 
 export const NAVIGATOR_SEQUENCE: readonly string[] = ['UP', 'UP'] as const;
 

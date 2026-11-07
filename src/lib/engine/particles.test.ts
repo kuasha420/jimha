@@ -7,7 +7,7 @@ import {
   GRAVITY,
   MAX_BUBBLES,
   type Particle,
-  type FloatingBubble
+  type FloatingBubble,
 } from './particles';
 
 describe('Particle Physics & Lifecycle Contract', () => {
@@ -37,7 +37,7 @@ describe('Particle Physics & Lifecycle Contract', () => {
       life: 1.0,
       decayRate: 0.5,
       rotation: 0,
-      rotSpeed: 1.0
+      rotSpeed: 1.0,
     };
 
     const dt = 0.1;
@@ -67,7 +67,7 @@ describe('Particle Physics & Lifecycle Contract', () => {
       life: 0.01,
       decayRate: 1.0,
       rotation: 0,
-      rotSpeed: 0
+      rotSpeed: 0,
     };
 
     const fallenP: Particle = {
@@ -81,7 +81,7 @@ describe('Particle Physics & Lifecycle Contract', () => {
       life: 1.0,
       decayRate: 0.1,
       rotation: 0,
-      rotSpeed: 0
+      rotSpeed: 0,
     };
 
     const remaining = updateParticles([deadP, fallenP], 0.1, 1000);
