@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "Jimha",
-        "width": 1280,
-        "height": 720,
-        "fullscreen": false,
-        "resizable": true
+        "fullscreen": true,
+        "decorations": false,
+        "resizable": false,
+        "focus": true
       }
     ],
     "security": {
