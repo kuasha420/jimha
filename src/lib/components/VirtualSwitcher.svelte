@@ -55,6 +55,35 @@
       onClose();
     }
   }
+
+  function getFallbackEmoji(title: string, icon: string): string {
+    const t = (title + ' ' + icon).toLowerCase();
+    if (t.includes('terminal') || t.includes('konsole') || t.includes('kitty') || t.includes('alacritty') || t.includes('zsh')) {
+      return '📟';
+    }
+    if (t.includes('firefox') || t.includes('chrome') || t.includes('browser') || t.includes('edge') || t.includes('brave')) {
+      return '🌐';
+    }
+    if (t.includes('discord') || t.includes('vesktop') || t.includes('slack') || t.includes('telegram')) {
+      return '💬';
+    }
+    if (t.includes('code') || t.includes('antigravity') || t.includes('cursor') || t.includes('editor')) {
+      return '✨';
+    }
+    if (t.includes('steam') || t.includes('game') || t.includes('lutris') || t.includes('heroic')) {
+      return '🎮';
+    }
+    if (t.includes('music') || t.includes('spotify') || t.includes('audio') || t.includes('vlc') || t.includes('media')) {
+      return '🎵';
+    }
+    if (t.includes('dolphin') || t.includes('file') || t.includes('nautilus') || t.includes('folder')) {
+      return '📁';
+    }
+    if (t.includes('setting') || t.includes('config') || t.includes('control')) {
+      return '⚙️';
+    }
+    return '🖥️';
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -71,7 +100,11 @@
           onclick={() => cyclePrev()}
           aria-label={`Previous window: ${prevWindow.title}`}
         >
-          <div class="card-icon">🖥️</div>
+          {#if prevWindow.icon && prevWindow.icon.startsWith('data:image')}
+            <img class="card-icon-img" src={prevWindow.icon} alt={prevWindow.title} />
+          {:else}
+            <div class="card-icon">{getFallbackEmoji(prevWindow.title, prevWindow.icon)}</div>
+          {/if}
           <div class="card-title">{prevWindow.title}</div>
         </button>
       {/if}
@@ -82,7 +115,11 @@
         onclick={() => commitSelection()}
         aria-label={`Active window: ${currentWindow.title}. Click to switch.`}
       >
-        <div class="active-icon">🖥️</div>
+        {#if currentWindow.icon && currentWindow.icon.startsWith('data:image')}
+          <img class="active-icon-img" src={currentWindow.icon} alt={currentWindow.title} />
+        {:else}
+          <div class="active-icon">{getFallbackEmoji(currentWindow.title, currentWindow.icon)}</div>
+        {/if}
         <div class="active-title">{currentWindow.title}</div>
         <div class="active-pos">
           Window [ {safeIndex + 1} of {Math.max(1, total)} ]
@@ -96,7 +133,11 @@
           onclick={() => cycleNext()}
           aria-label={`Next window: ${nextWindow.title}`}
         >
-          <div class="card-icon">🖥️</div>
+          {#if nextWindow.icon && nextWindow.icon.startsWith('data:image')}
+            <img class="card-icon-img" src={nextWindow.icon} alt={nextWindow.title} />
+          {:else}
+            <div class="card-icon">{getFallbackEmoji(nextWindow.title, nextWindow.icon)}</div>
+          {/if}
           <div class="card-title">{nextWindow.title}</div>
         </button>
       {/if}
@@ -205,8 +246,32 @@
     font-size: 2.2rem;
   }
 
+  .card-icon-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+  }
+
   .active-icon {
     font-size: 3.8rem;
+  }
+
+  .active-icon-img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5));
+    animation: icon-float 2.5s ease-in-out infinite;
+  }
+
+  @keyframes icon-float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
   }
 
   .card-title {

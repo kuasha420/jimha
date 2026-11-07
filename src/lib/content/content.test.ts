@@ -145,4 +145,16 @@ describe('Palette and Numbers Integration', () => {
     expect(dispJ.subtitle).toContain('Jimha');
     expect(dispJ.subtitle).not.toContain('JimHa');
   });
+
+  it('correctly resolves Space key without collapsing to KEY', () => {
+    const space1 = resolveKeyDisplay(' ');
+    expect(space1.title).toBe('SPACE');
+    expect(space1.subtitle).toContain('COSMIC SUPERNOVA');
+
+    const space2 = resolveKeyDisplay('Spacebar');
+    expect(space2.title).toBe('SPACE');
+
+    const space3 = resolveKeyDisplay('space');
+    expect(space3.title).toBe('SPACE');
+  });
 });

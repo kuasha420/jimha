@@ -160,6 +160,66 @@ pub fn parse_qdbus_matches(text: &str) -> Vec<(String, String, String)> {
     results
 }
 
+/// Encode arbitrary bytes into standard base64 string.
+pub fn encode_base64(bytes: &[u8]) -> String {
+    const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = chunk.get(1).map(|&b| b as usize).unwrap_or(0);
+        let b2 = chunk.get(2).map(|&b| b as usize).unwrap_or(0);
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(CHARSET[(triple >> 18) & 0x3f] as char);
+        out.push(CHARSET[(triple >> 12) & 0x3f] as char);
+        if chunk.len() > 1 {
+            out.push(CHARSET[(triple >> 6) & 0x3f] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(CHARSET[triple & 0x3f] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+/// Locate a system application icon and convert it to a base64 Data URL.
+pub fn resolve_icon_data_url(icon_name: &str) -> Option<String> {
+    if icon_name.trim().is_empty() {
+        return None;
+    }
+    let clean = icon_name.trim();
+
+    let search_roots = [
+        "/usr/share/icons/hicolor/128x128/apps",
+        "/usr/share/icons/hicolor/64x64/apps",
+        "/usr/share/icons/hicolor/48x48/apps",
+        "/usr/share/icons/hicolor/32x32/apps",
+        "/usr/share/icons/hicolor/scalable/apps",
+        "/usr/share/pixmaps",
+        "/usr/share/icons/breeze/apps/48",
+    ];
+
+    for root in search_roots {
+        let dir = PathBuf::from(root);
+        let png = dir.join(format!("{}.png", clean));
+        if png.is_file() {
+            if let Ok(bytes) = fs::read(&png) {
+                return Some(format!("data:image/png;base64,{}", encode_base64(&bytes)));
+            }
+        }
+        let svg = dir.join(format!("{}.svg", clean));
+        if svg.is_file() {
+            if let Ok(bytes) = fs::read(&svg) {
+                return Some(format!("data:image/svg+xml;base64,{}", encode_base64(&bytes)));
+            }
+        }
+    }
+    None
+}
+
 /// Filter raw window matches to remove Jimha itself and empty entries.
 pub fn filter_window_matches(raw: Vec<(String, String, String)>) -> Vec<WindowEntry> {
     let mut windows = Vec::new();
@@ -181,11 +241,13 @@ pub fn filter_window_matches(raw: Vec<(String, String, String)>) -> Vec<WindowEn
             continue;
         }
 
+        let resolved_icon = resolve_icon_data_url(&icon_clean).unwrap_or(icon_clean);
+
         seen.insert(id_clean.clone());
         windows.push(WindowEntry {
             id: id_clean,
             title: title_clean,
-            icon: icon_clean,
+            icon: resolved_icon,
         });
     }
 
@@ -486,5 +548,20 @@ mod tests {
         assert!(sh.is_some());
         let none = find_binary("nonexistent_binary_xyz123");
         assert_eq!(none, None);
+    }
+
+    #[test]
+    fn test_encode_base64() {
+        assert_eq!(encode_base64(b""), "");
+        assert_eq!(encode_base64(b"f"), "Zg==");
+        assert_eq!(encode_base64(b"fo"), "Zm8=");
+        assert_eq!(encode_base64(b"foo"), "Zm9v");
+        assert_eq!(encode_base64(b"Jimha"), "SmltaGE=");
+    }
+
+    #[test]
+    fn test_resolve_icon_data_url() {
+        assert_eq!(resolve_icon_data_url(""), None);
+        assert_eq!(resolve_icon_data_url("nonexistent_icon_12345"), None);
     }
 }

@@ -307,11 +307,6 @@
     }
 
     if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-      void triggerQuickSwitchHandover();
-      return;
-    }
-
-    if (rekka.matches(NAVIGATOR_SEQUENCE)) {
       void openVirtualSwitcher();
       return;
     }
@@ -390,11 +385,6 @@
     }
 
     if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-      void triggerQuickSwitchHandover();
-      return;
-    }
-
-    if (rekka.matches(NAVIGATOR_SEQUENCE)) {
       void openVirtualSwitcher();
       return;
     }
@@ -475,6 +465,11 @@
 
     animFrameId = requestAnimationFrame(tick);
 
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+
     // Initial warm-up on first user interaction
     const unlockAudio = () => {
       audioManager?.unlock();
@@ -488,6 +483,7 @@
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
+    window.removeEventListener('contextmenu', (e: MouseEvent) => e.preventDefault(), { capture: true });
     if (gamepadManager) {
       gamepadManager.detach();
       gamepadManager = null;
@@ -502,7 +498,7 @@
   });
 </script>
 
-<main class="jimha-app" aria-label={APP_NAME}>
+<main class="jimha-app" aria-label={APP_NAME} oncontextmenu={(e) => e.preventDefault()}>
   <PixiCanvas
     bind:this={pixiCanvas}
     onBubblePop={handleBubblePop}

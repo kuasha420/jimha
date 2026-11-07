@@ -60,6 +60,15 @@ export function getRandomColor(palette: readonly string[] = PALETTE): string {
 }
 
 export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
+  if (rawKey === ' ' || rawKey === 'Spacebar' || rawKey.toLowerCase() === 'space') {
+    return {
+      title: 'SPACE',
+      subtitle: '🌟 COSMIC SUPERNOVA! 🌟',
+      emoji: '✨',
+      color: '#00E5FF'
+    };
+  }
+
   const text = rawKey.trim().toUpperCase();
 
   if (text && ALPHABET_COMPANIONS[text]) {
