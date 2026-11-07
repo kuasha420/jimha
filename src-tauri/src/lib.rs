@@ -1,6 +1,9 @@
 pub mod kiosk;
+pub mod profile;
 
+use std::sync::Mutex;
 use kiosk::WindowEntry;
+use profile::{ChildProfile, ProfileSettings, ProfileStore};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -32,9 +35,38 @@ fn kiosk_close(window: tauri::Window) -> Result<(), String> {
     window.close().map_err(|e| format!("Failed to close window: {}", e))
 }
 
+#[tauri::command]
+fn profile_get(state: tauri::State<'_, Mutex<ProfileStore>>) -> Result<ChildProfile, String> {
+    let store = state.lock().map_err(|e| e.to_string())?;
+    Ok(store.profile().clone())
+}
+
+#[tauri::command]
+fn profile_record_event(
+    state: tauri::State<'_, Mutex<ProfileStore>>,
+    event_type: String,
+    key: Option<String>,
+) -> Result<Option<String>, String> {
+    let mut store = state.lock().map_err(|e| e.to_string())?;
+    store.record_event(&event_type, key.as_deref())
+}
+
+#[tauri::command]
+fn profile_save_settings(
+    state: tauri::State<'_, Mutex<ProfileStore>>,
+    settings: ProfileSettings,
+) -> Result<ChildProfile, String> {
+    let mut store = state.lock().map_err(|e| e.to_string())?;
+    store.save_settings(settings)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let profile_path = profile::resolve_default_profile_path();
+    let profile_store = ProfileStore::load_or_default(profile_path);
+
     tauri::Builder::default()
+        .manage(Mutex::new(profile_store))
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
@@ -42,7 +74,10 @@ pub fn run() {
             kiosk_query_windows,
             kiosk_handover,
             kiosk_minimize,
-            kiosk_close
+            kiosk_close,
+            profile_get,
+            profile_record_event,
+            profile_save_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running Jimha application");

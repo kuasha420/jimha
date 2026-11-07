@@ -1,3 +1,5 @@
+import { getNumberContent } from '../content/numbers';
+
 export const PALETTE = [
   '#FF4081', // Bubblegum Pink
   '#00E676', // Electric Mint
@@ -16,6 +18,13 @@ export interface CompanionInfo {
   subtitle: string;
 }
 
+export interface KeyDisplayResult {
+  title: string;
+  subtitle: string;
+  emoji: string;
+  color?: string;
+}
+
 export const ALPHABET_COMPANIONS: Record<string, [string, string]> = {
   A: ['🍎', 'Apple'],
   B: ['🦋', 'Butterfly'],
@@ -26,7 +35,7 @@ export const ALPHABET_COMPANIONS: Record<string, [string, string]> = {
   G: ['🎸', 'Guitar'],
   H: ['💖', 'Jim Heart (Easter Egg! 💖)'], // The legendary voice-dictation spark!
   I: ['🍦', 'Ice Cream'],
-  J: ['👑', 'JimHa! ✨'], // The queen herself!
+  J: ['👑', 'Jimha! ✨'], // The queen herself!
   K: ['🪁', 'Kite'],
   L: ['🦁', 'Lion'],
   M: ['🌙', 'Moon'],
@@ -50,7 +59,7 @@ export function getRandomColor(palette: readonly string[] = PALETTE): string {
   return palette[idx];
 }
 
-export function resolveKeyDisplay(rawKey: string): { title: string; subtitle: string; emoji: string } {
+export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
   const text = rawKey.trim().toUpperCase();
 
   if (text && ALPHABET_COMPANIONS[text]) {
@@ -62,14 +71,17 @@ export function resolveKeyDisplay(rawKey: string): { title: string; subtitle: st
     };
   }
 
-  if (text && /^\d$/.test(text)) {
+  if (text && /^\d+$/.test(text)) {
     const val = parseInt(text, 10);
-    const stars = '⭐'.repeat(Math.max(1, Math.min(val, 10)));
-    return {
-      title: text,
-      subtitle: `Number ${val}! ${stars}`,
-      emoji: '🔢'
-    };
+    const numContent = getNumberContent(val);
+    if (numContent) {
+      return {
+        title: numContent.title,
+        subtitle: numContent.subtitle,
+        emoji: numContent.emoji,
+        color: numContent.color
+      };
+    }
   }
 
   switch (text) {

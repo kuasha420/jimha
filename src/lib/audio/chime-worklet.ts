@@ -1,5 +1,5 @@
 /**
- * Dedicated AudioWorklet processor code for real-time DSP celestial chime synthesis.
+ * Dedicated AudioWorklet processor code for real-time DSP multi-instrument synthesis.
  * Running on high-priority audio rendering thread for 0ms latency.
  */
 
@@ -15,7 +15,12 @@ class JimhaChimeProcessor extends AudioWorkletProcessor {
           frequency: data.frequency || 440.0,
           sampleRate: sampleRate,
           sampleIndex: 0,
-          totalSamples: Math.floor(sampleRate * 0.85)
+          totalSamples: Math.floor(sampleRate * 0.85),
+          multipliers: data.multipliers || [1.0, 2.0, 3.0, 4.2, 5.4],
+          gains: data.gains || [1.0, 0.35, 0.18, 0.10, 0.05],
+          decayBodyRate: data.decayBodyRate || 2.5,
+          decayShimmerRate: data.decayShimmerRate || 5.5,
+          attackSeconds: data.attackSeconds || 0.004
         });
       }
     };
@@ -44,28 +49,35 @@ class JimhaChimeProcessor extends AudioWorkletProcessor {
       const f = voice.frequency;
       const sr = voice.sampleRate;
       const total = voice.totalSamples;
+      const mults = voice.multipliers;
+      const gains = voice.gains;
+      const decayBodyRate = voice.decayBodyRate;
+      const decayShimmerRate = voice.decayShimmerRate;
+      const attackSec = voice.attackSeconds;
 
       for (let i = 0; i < bufferSize; i++) {
         if (voice.sampleIndex >= total) break;
         const t = voice.sampleIndex / sr;
-        const attack = Math.min(1.0, t / 0.004);
-        const decayBody = Math.exp(-2.5 * t);
-        const decayShimmer = Math.exp(-5.5 * t);
+        const attack = Math.min(1.0, t / attackSec);
+        const decayBody = Math.exp(-decayBodyRate * t);
+        const decayShimmer = Math.exp(-decayShimmerRate * t);
 
-        const s1L = Math.sin(2.0 * Math.PI * f * t) * decayBody;
-        const s2L = 0.35 * Math.sin(2.0 * Math.PI * (2.0 * f) * t) * decayBody;
-        const s3L = 0.18 * Math.sin(2.0 * Math.PI * (3.0 * f) * t + phaseOffset) * decayShimmer;
-        const s4L = 0.10 * Math.sin(2.0 * Math.PI * (4.2 * f) * t) * decayShimmer;
-        const s5L = 0.05 * Math.sin(2.0 * Math.PI * (5.4 * f) * t) * decayShimmer;
+        let sumL = 0;
+        let sumR = 0;
 
-        const s1R = Math.sin(2.0 * Math.PI * f * t + phaseOffset * 0.5) * decayBody;
-        const s2R = 0.35 * Math.sin(2.0 * Math.PI * (2.0 * f) * t) * decayBody;
-        const s3R = 0.18 * Math.sin(2.0 * Math.PI * (3.0 * f) * t) * decayShimmer;
-        const s4R = 0.10 * Math.sin(2.0 * Math.PI * (4.2 * f) * t + phaseOffset) * decayShimmer;
-        const s5R = 0.05 * Math.sin(2.0 * Math.PI * (5.4 * f) * t) * decayShimmer;
+        for (let h = 0; h < mults.length; h++) {
+          const mult = mults[h];
+          const gain = gains[h];
+          const decay = mult <= 2.0 ? decayBody : decayShimmer;
+          const phaseL = h === 2 ? phaseOffset : 0;
+          const phaseR = h === 0 ? phaseOffset * 0.5 : h === 3 ? phaseOffset : 0;
 
-        const valL = attack * (s1L + s2L + s3L + s4L + s5L) * 0.45;
-        const valR = attack * (s1R + s2R + s3R + s4R + s5R) * 0.45;
+          sumL += gain * Math.sin(2.0 * Math.PI * (mult * f) * t + phaseL) * decay;
+          sumR += gain * Math.sin(2.0 * Math.PI * (mult * f) * t + phaseR) * decay;
+        }
+
+        const valL = attack * sumL * 0.45;
+        const valR = attack * sumR * 0.45;
 
         left[i] += valL;
         if (output[1]) right[i] += valR;

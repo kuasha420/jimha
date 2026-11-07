@@ -68,7 +68,7 @@
     currentTitle = resolved.title;
     currentSubtitle = customSubtitle ?? resolved.subtitle;
     currentEmoji = customEmoji ?? resolved.emoji;
-    currentColor = customColor ?? getRandomColor();
+    currentColor = customColor ?? resolved.color ?? getRandomColor();
     cardAge = 0.0;
 
     if (app && app.screen) {

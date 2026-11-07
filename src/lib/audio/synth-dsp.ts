@@ -4,6 +4,8 @@
  * and stereo phase spread from legacy sound_synth.py.
  */
 
+import { getInstrumentConfig, type InstrumentConfig, type InstrumentId } from '../content/instruments';
+
 export interface SynthesizedChime {
   left: Float32Array;
   right: Float32Array;
@@ -15,8 +17,14 @@ export interface SynthesizedChime {
 export function synthesizeChimeSamples(
   frequency: number,
   sampleRate: number = 44100,
-  duration: number = 0.85
+  duration: number = 0.85,
+  instrumentOrId: InstrumentId | InstrumentConfig = 'celesta'
 ): SynthesizedChime {
+  const config =
+    typeof instrumentOrId === 'string'
+      ? getInstrumentConfig(instrumentOrId)
+      : instrumentOrId;
+
   const nSamples = Math.floor(sampleRate * duration);
   const left = new Float32Array(nSamples);
   const right = new Float32Array(nSamples);
@@ -25,33 +33,40 @@ export function synthesizeChimeSamples(
   const phaseOffset = Math.PI * 0.08;
 
   let maxPeak = 1e-6;
+  const attackSec = config.attackSeconds || 0.004;
+  const decayBodyRate = config.decayBodyRate || 2.5;
+  const decayShimmerRate = config.decayShimmerRate || 5.5;
+  const multipliers = config.harmonicMultipliers;
+  const gains = config.harmonicGains;
 
   for (let i = 0; i < nSamples; i++) {
     const t = i / sampleRate;
 
-    // 4ms attack envelope to prevent clicks
-    const attack = Math.min(1.0, t / 0.004);
+    // Attack envelope to prevent clicks
+    const attack = Math.min(1.0, t / attackSec);
 
-    // Dual decay: fast shimmer decay + long fundamental sustain
-    const decayBody = Math.exp(-2.5 * t);
-    const decayShimmer = Math.exp(-5.5 * t);
+    // Dual decay: fast shimmer decay + body sustain
+    const decayBody = Math.exp(-decayBodyRate * t);
+    const decayShimmer = Math.exp(-decayShimmerRate * t);
 
-    // Left channel harmonic spectrum
-    const s1L = Math.sin(2.0 * Math.PI * frequency * t) * decayBody;
-    const s2L = 0.35 * Math.sin(2.0 * Math.PI * (2.0 * frequency) * t) * decayBody;
-    const s3L = 0.18 * Math.sin(2.0 * Math.PI * (3.0 * frequency) * t + phaseOffset) * decayShimmer;
-    const s4L = 0.10 * Math.sin(2.0 * Math.PI * (4.2 * frequency) * t) * decayShimmer;
-    const s5L = 0.05 * Math.sin(2.0 * Math.PI * (5.4 * frequency) * t) * decayShimmer;
+    let sumL = 0;
+    let sumR = 0;
 
-    // Right channel (subtle harmonic stereo spread)
-    const s1R = Math.sin(2.0 * Math.PI * frequency * t + phaseOffset * 0.5) * decayBody;
-    const s2R = 0.35 * Math.sin(2.0 * Math.PI * (2.0 * frequency) * t) * decayBody;
-    const s3R = 0.18 * Math.sin(2.0 * Math.PI * (3.0 * frequency) * t) * decayShimmer;
-    const s4R = 0.10 * Math.sin(2.0 * Math.PI * (4.2 * frequency) * t + phaseOffset) * decayShimmer;
-    const s5R = 0.05 * Math.sin(2.0 * Math.PI * (5.4 * frequency) * t) * decayShimmer;
+    for (let h = 0; h < multipliers.length; h++) {
+      const mult = multipliers[h];
+      const gain = gains[h];
+      const decay = mult <= 2.0 ? decayBody : decayShimmer;
 
-    const valL = attack * (s1L + s2L + s3L + s4L + s5L);
-    const valR = attack * (s1R + s2R + s3R + s4R + s5R);
+      // Slight stereo spread on overtones
+      const phaseL = h === 2 ? phaseOffset : 0;
+      const phaseR = h === 0 ? phaseOffset * 0.5 : h === 3 ? phaseOffset : 0;
+
+      sumL += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseL) * decay;
+      sumR += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseR) * decay;
+    }
+
+    const valL = attack * sumL;
+    const valR = attack * sumR;
 
     left[i] = valL;
     right[i] = valR;

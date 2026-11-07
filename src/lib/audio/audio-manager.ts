@@ -1,6 +1,7 @@
 import { PENTATONIC_FREQUENCIES, getFrequencyForKey, type FrequencySelection } from './frequencies';
 import { synthesizeChimeSamples } from './synth-dsp';
 import { CHIME_WORKLET_PROCESSOR_CODE } from './chime-worklet';
+import { getInstrumentConfig, type InstrumentId } from '../content/instruments';
 
 export class JimhaAudioManager {
   private ctx: AudioContext | null = null;
@@ -9,6 +10,7 @@ export class JimhaAudioManager {
   private noteIndex: number = 0;
   private isUnlocked: boolean = false;
   private workletLoaded: boolean = false;
+  private instrument: InstrumentId = 'celesta';
 
   constructor() {
     // Lazily initialized on first interaction or explicitly via unlock()
@@ -66,13 +68,24 @@ export class JimhaAudioManager {
     }
   }
 
+  public setInstrument(instrument: InstrumentId): void {
+    if (this.instrument === instrument) return;
+    this.instrument = instrument;
+    this.bufferCache.clear();
+    this.ensureBufferCache();
+  }
+
+  public getInstrument(): InstrumentId {
+    return this.instrument;
+  }
+
   public ensureBufferCache(): void {
     if (!this.ctx) return;
 
     const sr = this.ctx.sampleRate || 44100;
     for (const freq of PENTATONIC_FREQUENCIES) {
       if (!this.bufferCache.has(freq)) {
-        const synth = synthesizeChimeSamples(freq, sr, 0.85);
+        const synth = synthesizeChimeSamples(freq, sr, 0.85, this.instrument);
         const buffer = this.ctx.createBuffer(2, synth.left.length, sr);
         buffer.getChannelData(0).set(synth.left);
         buffer.getChannelData(1).set(synth.right);
@@ -120,9 +133,16 @@ export class JimhaAudioManager {
 
     // 1. Dedicated AudioWorklet synthesis pathway (high priority)
     if (this.workletLoaded && this.workletNode) {
+      const config = getInstrumentConfig(this.instrument);
       this.workletNode.port.postMessage({
         type: 'trigger',
-        frequency
+        frequency,
+        instrument: this.instrument,
+        multipliers: config.harmonicMultipliers,
+        gains: config.harmonicGains,
+        decayBodyRate: config.decayBodyRate,
+        decayShimmerRate: config.decayShimmerRate,
+        attackSeconds: config.attackSeconds,
       });
       return;
     }
@@ -131,7 +151,7 @@ export class JimhaAudioManager {
     let buffer = this.bufferCache.get(frequency);
     if (!buffer) {
       const sr = this.ctx.sampleRate || 44100;
-      const synth = synthesizeChimeSamples(frequency, sr, 0.85);
+      const synth = synthesizeChimeSamples(frequency, sr, 0.85, this.instrument);
       buffer = this.ctx.createBuffer(2, synth.left.length, sr);
       buffer.getChannelData(0).set(synth.left);
       buffer.getChannelData(1).set(synth.right);

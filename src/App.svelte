@@ -4,6 +4,8 @@
   import ExitHoldHud from './lib/components/ExitHoldHud.svelte';
   import ParentGateHud from './lib/components/ParentGateHud.svelte';
   import VirtualSwitcher, { type WindowItem } from './lib/components/VirtualSwitcher.svelte';
+  import StickerBook from './lib/components/StickerBook.svelte';
+  import UnlockCelebrationBanner from './lib/components/UnlockCelebrationBanner.svelte';
   import { JimhaAudioManager } from './lib/audio/audio-manager';
   import {
     RekkaBuffer,
@@ -11,13 +13,47 @@
     QUICK_SWITCH_SEQUENCE,
     NAVIGATOR_SEQUENCE,
   } from './lib/engine/rekka';
+  import { STICKERS } from './lib/content/stickers';
+  import type { InstrumentId } from './lib/content/instruments';
   import { APP_NAME } from './lib/constants';
+
+  interface ChildProfile {
+    child_name: string;
+    total_play_time_sec: number;
+    total_key_presses: number;
+    total_bubbles_popped: number;
+    unlocked_stickers: string[];
+    settings: {
+      esc_hold_seconds: number;
+      parent_gate_seconds: number;
+      audio_volume: number;
+      instrument: string;
+    };
+  }
 
   let pixiCanvas: PixiCanvas | null = $state(null);
   let switcherRef: VirtualSwitcher | null = $state(null);
   let audioManager: JimhaAudioManager | null = null;
   let touchCount = $state(0);
   let lastNoteName = $state('');
+
+  // Child Progression state
+  let profile = $state<ChildProfile>({
+    child_name: 'Jimha',
+    total_play_time_sec: 0,
+    total_key_presses: 0,
+    total_bubbles_popped: 0,
+    unlocked_stickers: [],
+    settings: {
+      esc_hold_seconds: 3.0,
+      parent_gate_seconds: 2.0,
+      audio_volume: 1.0,
+      instrument: 'celesta',
+    },
+  });
+  let isStickerBookOpen = $state(false);
+  let activeCelebrationStickerId = $state<string | null>(null);
+  let showCelebrationBanner = $state(false);
 
   // ESC hold state (3.0s continuous hold)
   let isEscPressed = $state(false);
@@ -62,7 +98,28 @@
     await callTauri('kiosk_minimize');
   }
 
+  async function recordProgressionEvent(eventType: string, key?: string | null) {
+    if (eventType === 'key_press') {
+      profile.total_key_presses += 1;
+    } else if (eventType === 'bubble_pop') {
+      profile.total_bubbles_popped += 1;
+    }
+
+    const unlocked = await callTauri<string | null>('profile_record_event', {
+      eventType,
+      key: key ?? null,
+    });
+    if (unlocked) {
+      if (!profile.unlocked_stickers.includes(unlocked)) {
+        profile.unlocked_stickers = [...profile.unlocked_stickers, unlocked];
+      }
+      activeCelebrationStickerId = unlocked;
+      showCelebrationBanner = true;
+    }
+  }
+
   async function triggerKonamiHandover() {
+    void recordProgressionEvent('konami', 'KONAMI');
     if (pixiCanvas) {
       pixiCanvas.triggerKey('👑 30 LIVES GRANTED! 🚀💖✨', '#FF4081');
     }
@@ -100,6 +157,7 @@
 
   function handleBubblePop() {
     touchCount += 1;
+    void recordProgressionEvent('bubble_pop');
     if (audioManager) {
       const selection = audioManager.playKey('POP');
       lastNoteName = selection.noteName;
@@ -107,6 +165,20 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    if (isStickerBookOpen) {
+      if (event.key === 'Escape' || event.key === 'Backspace') {
+        event.preventDefault();
+        isStickerBookOpen = false;
+      }
+      return;
+    }
+
+    if (event.key === 'F2' || (event.altKey && (event.key === 'b' || event.key === 'B'))) {
+      event.preventDefault();
+      isStickerBookOpen = true;
+      return;
+    }
+
     const isAlt = event.key === 'Alt';
     const isTab = event.key === 'Tab';
 
@@ -239,7 +311,9 @@
       return;
     }
 
-    // 5. Normal Game Audio and Pixi Canvas Dispatch
+    // 5. Normal Game Audio, Pixi Canvas and Child Progression Dispatch
+    void recordProgressionEvent('key_press', event.key);
+
     if (audioManager) {
       const selection = audioManager.playKey(event.key);
       lastNoteName = selection.noteName;
@@ -311,6 +385,16 @@
 
     void callTauri('kiosk_inhibit_shortcuts');
 
+    void callTauri<ChildProfile>('profile_get').then((loadedProfile) => {
+      if (loadedProfile) {
+        profile = loadedProfile;
+        touchCount = loadedProfile.total_key_presses + loadedProfile.total_bubbles_popped;
+        if (loadedProfile.settings?.instrument && audioManager) {
+          audioManager.setInstrument(loadedProfile.settings.instrument as InstrumentId);
+        }
+      }
+    });
+
     animFrameId = requestAnimationFrame(tick);
 
     // Initial warm-up on first user interaction
@@ -366,11 +450,41 @@
     />
   {/if}
 
+  <StickerBook
+    isOpen={isStickerBookOpen}
+    unlockedStickers={profile.unlocked_stickers}
+    childName={profile.child_name}
+    totalKeyPresses={profile.total_key_presses}
+    totalBubblesPopped={profile.total_bubbles_popped}
+    onClose={() => {
+      isStickerBookOpen = false;
+    }}
+  />
+
+  <UnlockCelebrationBanner
+    stickerId={activeCelebrationStickerId}
+    visible={showCelebrationBanner}
+    onDismiss={() => {
+      showCelebrationBanner = false;
+    }}
+  />
+
   <header class="hud-header">
     <div class="hud-pill brand-pill">
       <span class="sparkle">✨</span>
       <span class="brand-text">{APP_NAME}</span>
     </div>
+
+    <button
+      type="button"
+      class="hud-pill sticker-pill"
+      onclick={() => {
+        isStickerBookOpen = true;
+      }}
+      aria-label="Open Sticker Book"
+    >
+      <span>🏆 Badges ({profile.unlocked_stickers.length}/{STICKERS.length})</span>
+    </button>
 
     {#if lastNoteName}
       <div class="hud-pill tone-pill">
@@ -450,5 +564,20 @@
   .tone-pill {
     color: #ffd600;
     border-color: rgba(255, 214, 0, 0.3);
+  }
+
+  .sticker-pill {
+    pointer-events: auto;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(255, 214, 0, 0.2), rgba(124, 77, 255, 0.2));
+    border-color: rgba(255, 214, 0, 0.4);
+    color: #ffd600;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .sticker-pill:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 214, 0, 0.8);
+    box-shadow: 0 4px 16px rgba(255, 214, 0, 0.3);
   }
 </style>
