@@ -92,10 +92,14 @@ describe('Instruments & Timbre DSP Synthesis', () => {
       expect(chime.right.length).toBe(Math.floor(sr * dur));
       expect(chime.peak).toBeGreaterThan(0);
       // Assert audio is bounded within [-1.0, 1.0]
+      let minVal = 0;
+      let maxVal = 0;
       for (let i = 0; i < chime.left.length; i++) {
-        expect(chime.left[i]).toBeGreaterThanOrEqual(-1.0);
-        expect(chime.left[i]).toBeLessThanOrEqual(1.0);
+        if (chime.left[i] < minVal) minVal = chime.left[i];
+        if (chime.left[i] > maxVal) maxVal = chime.left[i];
       }
+      expect(minVal).toBeGreaterThanOrEqual(-1.0);
+      expect(maxVal).toBeLessThanOrEqual(1.0);
     }
   });
 

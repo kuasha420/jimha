@@ -5,7 +5,9 @@ import {
   updateParticles,
   updateBubbles,
   GRAVITY,
-  type Particle
+  MAX_BUBBLES,
+  type Particle,
+  type FloatingBubble
 } from './particles';
 
 describe('Particle Physics & Lifecycle Contract', () => {
@@ -98,6 +100,21 @@ describe('Particle Physics & Lifecycle Contract', () => {
     const updated = updateBubbles([bubble], dt);
     expect(updated.length).toBe(1);
     expect(updated[0].y).toBeLessThan(400);
-    expect(updated[0].life).toBeCloseTo(1.0 - 0.15 * 0.5, 3);
+    expect(updated[0].life).toBeCloseTo(0.925, 3);
+  });
+
+  it('caps bubble lagoon at MAX_BUBBLES (25) and prunes excess oldest bubbles', () => {
+    expect(MAX_BUBBLES).toBe(25);
+    const bubbles: FloatingBubble[] = [];
+    for (let i = 0; i < 30; i++) {
+      const b = spawnBubble(100 + i, 200);
+      b.vx = 0;
+      bubbles.push(b);
+    }
+    const updated = updateBubbles(bubbles, 0.1);
+    expect(updated.length).toBe(25);
+    // Oldest 5 bubbles (x=100..104) pruned; remaining are x=105..129
+    expect(updated[0].x).toBe(105);
+    expect(updated[24].x).toBe(129);
   });
 });

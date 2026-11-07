@@ -1,48 +1,62 @@
 <script lang="ts">
   interface Props {
-    progress: number; // 0.0 to 1.0
-    remainingSec: number;
+    progress?: number; // 0.0 to 1.0
+    remainingSec?: number;
+    visible?: boolean;
+    holdProgress?: number;
+    maxHoldSeconds?: number;
   }
 
-  let { progress = 0.0, remainingSec = 3.0 }: Props = $props();
+  let {
+    progress = 0.0,
+    remainingSec = 3.0,
+    visible = true,
+    holdProgress,
+    maxHoldSeconds,
+  }: Props = $props();
+
+  const effectiveProgress = $derived(holdProgress !== undefined ? holdProgress : progress);
+  const effectiveSec = $derived(maxHoldSeconds !== undefined ? maxHoldSeconds : remainingSec);
 
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
-  let strokeDashoffset = $derived(circumference * (1 - Math.max(0, Math.min(1, progress))));
-  let formattedTime = $derived(`${Math.max(0, remainingSec).toFixed(1)}s`);
+  let strokeDashoffset = $derived(circumference * (1 - Math.max(0, Math.min(1, effectiveProgress))));
+  let formattedTime = $derived(`${Math.max(0, effectiveSec).toFixed(1)}s`);
 </script>
 
-<div class="exit-hold-overlay" role="status" aria-live="polite">
-  <div class="hud-card">
-    <div class="hud-top-label">HOLDING ESC TO EXIT...</div>
+{#if visible}
+  <div class="exit-hold-overlay" role="status" aria-live="polite">
+    <div class="hud-card">
+      <div class="hud-top-label">HOLDING ESC TO EXIT...</div>
 
-    <div class="hud-dial">
-      <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
-        <!-- Background track -->
-        <circle
-          class="ring-bg"
-          cx="60"
-          cy="60"
-          r={radius}
-          stroke-width="8"
-        />
-        <!-- Progress arc -->
-        <circle
-          class="ring-progress"
-          cx="60"
-          cy="60"
-          r={radius}
-          stroke-width="8"
-          stroke-dasharray={circumference}
-          stroke-dashoffset={strokeDashoffset}
-        />
-      </svg>
-      <span class="hud-time">{formattedTime}</span>
+      <div class="hud-dial">
+        <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
+          <!-- Background track -->
+          <circle
+            class="ring-bg"
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke-width="8"
+          />
+          <!-- Progress arc -->
+          <circle
+            class="ring-progress"
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke-width="8"
+            stroke-dasharray={circumference}
+            stroke-dashoffset={strokeDashoffset}
+          />
+        </svg>
+        <span class="hud-time">{formattedTime}</span>
+      </div>
+
+      <div class="hud-cancel-hint">Hold Shift + Esc to exit &bull; Release to stay</div>
     </div>
-
-    <div class="hud-cancel-hint">Hold Shift + ESC to exit &bull; Release to stay</div>
   </div>
-</div>
+{/if}
 
 <style>
   .exit-hold-overlay {

@@ -24,8 +24,19 @@ describe('Pentatonic Frequencies & Audio Mapping Contract', () => {
   it('determines deterministic harmonic pitch based on key characters', () => {
     const keyA = getFrequencyForKey('A', 0);
     const keyB = getFrequencyForKey('B', 0);
-    expect(keyA.index).toBe('A'.charCodeAt(0) % 11);
-    expect(keyB.index).toBe('B'.charCodeAt(0) % 11);
-    expect(keyA.frequency).toBe(PENTATONIC_FREQUENCIES['A'.charCodeAt(0) % 11]);
+    expect(keyA.index).toBe(10);
+    expect(keyA.frequency).toBe(1046.50);
+    expect(keyA.noteName).toBe('C6');
+
+    expect(keyB.index).toBe(0);
+    expect(keyB.frequency).toBe(261.63);
+    expect(keyB.noteName).toBe('C4');
+  });
+
+  it('wraps around negative noteIndex correctly to valid pentatonic frequency', () => {
+    const selection = getFrequencyForKey('', -1);
+    expect(selection.index).toBe(10);
+    expect(selection.frequency).toBe(1046.50);
+    expect(selection.noteName).toBe('C6');
   });
 });

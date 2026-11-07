@@ -3,15 +3,23 @@
   import { getStickerById } from '../content/stickers';
 
   interface Props {
-    stickerId: string | null;
+    stickerId?: string | null;
+    unlockedStickerId?: string | null;
     visible: boolean;
     onDismiss: () => void;
     onOpenStickerBook?: () => void;
   }
 
-  const { stickerId, visible, onDismiss, onOpenStickerBook }: Props = $props();
+  const {
+    stickerId,
+    unlockedStickerId,
+    visible,
+    onDismiss,
+    onOpenStickerBook
+  }: Props = $props();
 
-  const sticker = $derived(stickerId ? getStickerById(stickerId) : null);
+  const effectiveId = $derived(stickerId || unlockedStickerId || null);
+  const sticker = $derived(effectiveId ? getStickerById(effectiveId) : null);
   let timerId: ReturnType<typeof setTimeout> | null = null;
   let holdTimer: ReturnType<typeof setTimeout> | null = null;
 

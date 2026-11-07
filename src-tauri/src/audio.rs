@@ -171,3 +171,46 @@ impl NativeAudioEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_cache_dir() {
+        let dir = resolve_cache_dir();
+        assert!(dir.to_string_lossy().contains("audio_cache_v2"));
+    }
+
+    #[test]
+    fn test_write_chime_wav_valid_riff_header() {
+        let temp_dir = std::env::temp_dir();
+        let test_path = temp_dir.join(format!("test_chime_{}.wav", std::process::id()));
+        NativeAudioEngine::write_chime_wav(&test_path, 440.0);
+
+        assert!(test_path.exists());
+        let bytes = std::fs::read(&test_path).expect("read test wav");
+        assert!(bytes.len() >= 44);
+
+        assert_eq!(&bytes[0..4], b"RIFF");
+        assert_eq!(&bytes[8..12], b"WAVE");
+        assert_eq!(&bytes[12..16], b"fmt ");
+
+        let audio_format = u16::from_le_bytes(bytes[20..22].try_into().unwrap());
+        assert_eq!(audio_format, 1);
+
+        let channels = u16::from_le_bytes(bytes[22..24].try_into().unwrap());
+        assert_eq!(channels, 2);
+
+        let sample_rate = u32::from_le_bytes(bytes[24..28].try_into().unwrap());
+        assert_eq!(sample_rate, 44100);
+
+        let bits_per_sample = u16::from_le_bytes(bytes[34..36].try_into().unwrap());
+        assert_eq!(bits_per_sample, 16);
+
+        assert_eq!(&bytes[36..40], b"data");
+
+        let _ = std::fs::remove_file(test_path);
+    }
+}
+

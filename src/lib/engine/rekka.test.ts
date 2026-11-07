@@ -91,4 +91,22 @@ describe('RekkaBuffer Arcade Combo Engine', () => {
     rekka.add('UP', 100.0);
     expect(rekka.matches(QUICK_SWITCH_SEQUENCE)).toBe(false);
   });
+
+  it('matches valid combo despite preceding toddler mash noise', () => {
+    const mashed = ['X', 'Z', 'UP', 'UP'];
+    let t = 100.0;
+    for (const k of mashed) {
+      rekka.add(k, t);
+      t += 0.05;
+    }
+    expect(rekka.matches(NAVIGATOR_SEQUENCE)).toBe(true);
+    expect(rekka.endsWith(NAVIGATOR_SEQUENCE)).toBe(true);
+  });
+
+  it('matches lowercase sequences case-insensitively', () => {
+    rekka.add('UP', 100.0);
+    rekka.add('UP', 100.1);
+    expect(rekka.matches(['up', 'up'])).toBe(true);
+    expect(rekka.endsWith(['up', 'up'])).toBe(true);
+  });
 });
