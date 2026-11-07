@@ -24,12 +24,21 @@ pub struct NativeAudioEngine {
     player_bin: Option<PathBuf>,
 }
 
+fn resolve_cache_dir() -> PathBuf {
+    if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
+        if !xdg.is_empty() {
+            return PathBuf::from(xdg).join("jimha").join("audio_cache_v2");
+        }
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home).join(".cache").join("jimha").join("audio_cache_v2");
+    }
+    PathBuf::from("/tmp").join("jimha").join("audio_cache_v2")
+}
+
 impl NativeAudioEngine {
     pub fn new() -> Self {
-        let cache_dir = dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
-            .join("jimha")
-            .join("audio_cache_v2");
+        let cache_dir = resolve_cache_dir();
         let _ = fs::create_dir_all(&cache_dir);
 
         let player = crate::kiosk::find_binary("pw-play")
@@ -92,10 +101,10 @@ impl NativeAudioEngine {
         }
 
         // Standard 44-byte Stereo 16-bit PCM WAV header
-        let byte_rate = sample_rate * 2 * 2;
-        let block_align = 2 * 2;
-        let data_size = (samples_i16.len() * 2) as u32;
-        let file_size = 36 + data_size;
+        let byte_rate: u32 = sample_rate * 4;
+        let block_align: u16 = 4;
+        let data_size: u32 = (samples_i16.len() * 2) as u32;
+        let file_size: u32 = 36 + data_size;
 
         let mut header = Vec::with_capacity(44);
         header.extend_from_slice(b"RIFF");

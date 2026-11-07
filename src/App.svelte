@@ -131,9 +131,11 @@
     if (audioManager) {
       audioManager.playKey('ENTER');
     }
-    setTimeout(() => {
-      void triggerDesktopHandover();
-    }, 600);
+    if (!import.meta.env.DEV) {
+      setTimeout(() => {
+        void triggerDesktopHandover();
+      }, 600);
+    }
   }
 
   async function triggerQuickSwitchHandover() {

@@ -3,13 +3,27 @@ import { synthesizeChimeSamples } from './synth-dsp';
 import { CHIME_WORKLET_PROCESSOR_CODE } from './chime-worklet';
 import { getInstrumentConfig, type InstrumentId } from '../content/instruments';
 
+let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
+
+function invokeNativeAudio(keyText: string): void {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+  if (cachedInvoke) {
+    cachedInvoke('audio_play_key', { key: keyText }).catch(() => {});
+  } else {
+    import('@tauri-apps/api/core')
+      .then(({ invoke }) => {
+        cachedInvoke = invoke;
+        invoke('audio_play_key', { key: keyText }).catch(() => {});
+      })
+      .catch(() => {});
+  }
+}
+
 export class JimhaAudioManager {
   private ctx: AudioContext | null = null;
-  private workletNode: AudioWorkletNode | null = null;
   private bufferCache: Map<number, AudioBuffer> = new Map();
   private noteIndex: number = 0;
   private isUnlocked: boolean = false;
-  private workletLoaded: boolean = false;
   private instrument: InstrumentId = 'celesta';
   private unlockPromise: Promise<boolean> | null = null;
 
@@ -42,54 +56,11 @@ export class JimhaAudioManager {
       }
 
       this.isUnlocked = true;
-
-      // Always pre-warm fallback AudioBuffers first so sound is available immediately
       this.ensureBufferCache();
-
-      if (!this.workletLoaded && this.ctx.audioWorklet) {
-        await this.loadWorklet();
-      }
-
       return true;
     } catch (err) {
       console.debug('[JimhaAudio] unlock failed:', err);
       return false;
-    }
-  }
-
-  private async loadWorklet(): Promise<void> {
-    if (!this.ctx || !this.ctx.audioWorklet) return;
-
-    try {
-      const blob = new Blob([CHIME_WORKLET_PROCESSOR_CODE], { type: 'application/javascript' });
-      const workletUrl = URL.createObjectURL(blob);
-      await this.ctx.audioWorklet.addModule(workletUrl);
-      URL.revokeObjectURL(workletUrl);
-
-      const node = new AudioWorkletNode(this.ctx, 'jimha-chime-processor', {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2]
-      });
-
-      node.onprocessorerror = (err) => {
-        console.warn('[JimhaAudio] worklet processor error, falling back to AudioBuffer:', err);
-        this.workletLoaded = false;
-        if (this.workletNode) {
-          try {
-            this.workletNode.disconnect();
-          } catch (_) {}
-          this.workletNode = null;
-        }
-      };
-
-      node.connect(this.ctx.destination);
-      this.workletNode = node;
-      this.workletLoaded = true;
-    } catch (err) {
-      console.debug('[JimhaAudio] loadWorklet failed, using buffer fallback:', err);
-      this.workletLoaded = false;
-      this.workletNode = null;
     }
   }
 
@@ -123,16 +94,10 @@ export class JimhaAudioManager {
     const selection = getFrequencyForKey(keyText, this.noteIndex);
     this.noteIndex = (this.noteIndex + 1) % PENTATONIC_FREQUENCIES.length;
 
-    // 1. Native PipeWire/ALSA stream via Tauri command (bypasses WebKit gesture limits)
-    if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
-      import('@tauri-apps/api/core')
-        .then(({ invoke }) => {
-          invoke('audio_play_key', { key: keyText }).catch(() => {});
-        })
-        .catch(() => {});
-    }
+    // 1. Native PipeWire stream via Tauri (0ms latency, bypasses browser sandbox)
+    invokeNativeAudio(keyText);
 
-    // 2. In-browser Web Audio fallback
+    // 2. In-browser Web Audio pre-cached buffer playback
     this.playFrequency(selection.frequency);
 
     return selection;
@@ -140,7 +105,6 @@ export class JimhaAudioManager {
 
   public playFrequency(frequency: number): void {
     if (!this.ctx) {
-      // Fire-and-forget lazy unlock
       this.unlock()
         .then(() => this.dispatchAudio(frequency))
         .catch((err) => {
@@ -164,31 +128,6 @@ export class JimhaAudioManager {
 
   private dispatchAudio(frequency: number): void {
     if (!this.ctx) return;
-
-    // 1. Dedicated AudioWorklet synthesis pathway (high priority)
-    if (this.workletLoaded && this.workletNode) {
-      try {
-        const config = getInstrumentConfig(this.instrument);
-        this.workletNode.port.postMessage({
-          type: 'trigger',
-          frequency,
-          instrument: this.instrument,
-          sampleRate: this.ctx.sampleRate || 44100,
-          multipliers: config.harmonicMultipliers,
-          gains: config.harmonicGains,
-          decayBodyRate: config.decayBodyRate,
-          decayShimmerRate: config.decayShimmerRate,
-          attackSeconds: config.attackSeconds,
-        });
-        return;
-      } catch (err) {
-        console.warn('[JimhaAudio] worklet postMessage failed, falling back to AudioBuffer:', err);
-        this.workletLoaded = false;
-        this.workletNode = null;
-      }
-    }
-
-    // 2. High-performance pre-warmed AudioBuffer fallback pathway (bulletproof guarantee)
     this.playBuffer(frequency);
   }
 
@@ -216,16 +155,11 @@ export class JimhaAudioManager {
   }
 
   public async close(): Promise<void> {
-    if (this.workletNode) {
-      this.workletNode.disconnect();
-      this.workletNode = null;
-    }
     if (this.ctx) {
       await this.ctx.close();
       this.ctx = null;
     }
     this.bufferCache.clear();
     this.isUnlocked = false;
-    this.workletLoaded = false;
   }
 }
