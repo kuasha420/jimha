@@ -83,13 +83,13 @@ describe('MelodySequencer Unit & Contract Suite', () => {
     sequencer.advanceStep();
     expect(sequencer.getCurrentStep()).toBe(1);
     expect(playWebNote).toHaveBeenCalledTimes(1);
-    expect(playWebNote).toHaveBeenLastCalledWith(PENTATONIC_FREQUENCIES[5], 0.06);
+    expect(playWebNote).toHaveBeenLastCalledWith(PENTATONIC_FREQUENCIES[5], 0.1);
 
     // Step 1: bass only (index 0)
     sequencer.advanceStep();
     expect(sequencer.getCurrentStep()).toBe(2);
     expect(playWebNote).toHaveBeenCalledTimes(2);
-    expect(playWebNote).toHaveBeenLastCalledWith(PENTATONIC_FREQUENCIES[0], 0.04);
+    expect(playWebNote).toHaveBeenLastCalledWith(PENTATONIC_FREQUENCIES[0], 0.07);
 
     // Step 2: full rest (nothing emitted)
     sequencer.advanceStep();
@@ -100,41 +100,41 @@ describe('MelodySequencer Unit & Contract Suite', () => {
     sequencer.advanceStep();
     expect(sequencer.getCurrentStep()).toBe(0);
     expect(playWebNote).toHaveBeenCalledTimes(4);
-    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[7], 0.06);
-    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[3], 0.04);
+    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[7], 0.1);
+    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[3], 0.07);
   });
 
   it('calculates dynamic volume ducking on input and restores after timeout', () => {
     const sequencer = new MelodySequencer();
 
     // Default resting volume
-    expect(sequencer.calculateVolume(false)).toBe(0.06);
-    expect(sequencer.calculateVolume(true)).toBe(0.04);
+    expect(sequencer.calculateVolume(false)).toBe(0.1);
+    expect(sequencer.calculateVolume(true)).toBe(0.07);
 
-    // Ducking triggered (< 3000ms): lead muted (0.0), bass reduced to 0.02
+    // Ducking triggered (< 3000ms): lead muted (0.0), bass reduced to 0.035
     sequencer.notifyInput();
     expect(sequencer.calculateVolume(false)).toBe(0.0);
-    expect(sequencer.calculateVolume(true)).toBe(0.02);
+    expect(sequencer.calculateVolume(true)).toBe(0.035);
 
     // Active key input at 2000ms still muted
     vi.advanceTimersByTime(2000);
     expect(sequencer.calculateVolume(false)).toBe(0.0);
-    expect(sequencer.calculateVolume(true)).toBe(0.02);
+    expect(sequencer.calculateVolume(true)).toBe(0.035);
 
     // Quadratic recovery ramp between 3000ms and 6000ms
     // At elapsed = 4500ms (advance 2500ms: 2000 + 2500 = 4500ms)
     // progress = (4500 - 3000) / 3000 = 0.5
     // ramp = 0.5 * 0.5 = 0.25
-    // lead = 0.06 * 0.25 = 0.015
-    // bass = 0.02 + 0.02 * 0.5 = 0.03
+    // lead = 0.10 * 0.25 = 0.025
+    // bass = 0.035 + 0.035 * 0.5 = 0.0525
     vi.advanceTimersByTime(2500);
-    expect(sequencer.calculateVolume(false)).toBeCloseTo(0.015);
-    expect(sequencer.calculateVolume(true)).toBeCloseTo(0.03);
+    expect(sequencer.calculateVolume(false)).toBeCloseTo(0.025);
+    expect(sequencer.calculateVolume(true)).toBeCloseTo(0.0525);
 
     // Fully restored after 6000ms (advance 2000ms more: 4500 + 2000 = 6500ms >= 6000ms)
     vi.advanceTimersByTime(2000);
-    expect(sequencer.calculateVolume(false)).toBe(0.06);
-    expect(sequencer.calculateVolume(true)).toBe(0.04);
+    expect(sequencer.calculateVolume(false)).toBe(0.1);
+    expect(sequencer.calculateVolume(true)).toBe(0.07);
   });
 
   it('calculates attenuated volume in UI mode regardless of input', () => {
@@ -168,16 +168,16 @@ describe('MelodySequencer Unit & Contract Suite', () => {
     expect(sequencer.getCurrentStep()).toBe(0);
     expect(sequencer.getTrack().id).toBe('test_duck_skip');
 
-    sequencer.notifyInput(); // Trigger active ducking: lead is 0.0 (<= 0.001), bass is 0.02
+    sequencer.notifyInput(); // Trigger active ducking: lead is 0.0 (<= 0.001), bass is 0.035
     expect(sequencer.calculateVolume(false)).toBe(0.0);
-    expect(sequencer.calculateVolume(true)).toBe(0.02);
+    expect(sequencer.calculateVolume(true)).toBe(0.035);
 
     sequencer.advanceStep();
     expect(sequencer.getCurrentStep()).toBe(0);
     // Lead note is skipped because volume <= 0.001
-    // Bass note is played with volume 0.02
+    // Bass note is played with volume 0.035
     expect(playWebNote).toHaveBeenCalledTimes(1);
-    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[0], 0.02);
+    expect(playWebNote).toHaveBeenCalledWith(PENTATONIC_FREQUENCIES[0], 0.035);
   });
 
   it('schedules playback intervals and halts on stop', () => {

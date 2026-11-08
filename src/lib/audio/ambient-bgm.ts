@@ -98,7 +98,7 @@ export class AmbientBgmEngine {
     const now = this.ctx.currentTime;
     let targetCutoff = 3000;
     if (this.mode === 'playing') {
-      targetCutoff = 650;
+      targetCutoff = 900;
     } else if (this.mode === 'ui') {
       targetCutoff = 750;
     }

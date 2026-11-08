@@ -27,6 +27,30 @@ describe('UI Component Invariants', () => {
     container.remove();
   });
 
+  it('renders ExitHoldHud with custom controller and touch prompts', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const component = mount(ExitHoldHud, {
+      target: container,
+      props: {
+        visible: true,
+        progress: 0.75,
+        remainingSec: 1.2,
+        title: 'CONTROLLER EXIT HOLD...',
+        hint: 'Hold SELECT + START to exit • Release to stay',
+      },
+    });
+
+    const text = container.textContent || '';
+    expect(text).toContain('CONTROLLER EXIT HOLD...');
+    expect(text).toContain('Hold SELECT + START to exit');
+    expect(text).toContain('1.2s');
+
+    unmount(component);
+    container.remove();
+  });
+
   it('renders UnlockCelebrationBanner with First Spark and gesture prompt', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

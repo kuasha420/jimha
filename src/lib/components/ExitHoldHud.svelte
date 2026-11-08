@@ -5,6 +5,8 @@
     visible?: boolean;
     holdProgress?: number;
     maxHoldSeconds?: number;
+    title?: string;
+    hint?: string;
   }
 
   let {
@@ -13,6 +15,8 @@
     visible = true,
     holdProgress,
     maxHoldSeconds,
+    title = 'HOLDING ESC TO EXIT...',
+    hint = 'Hold Shift + Esc to exit • Release to stay',
   }: Props = $props();
 
   const effectiveProgress = $derived(holdProgress !== undefined ? holdProgress : progress);
@@ -29,7 +33,7 @@
 {#if visible}
   <div class="exit-hold-overlay" role="status" aria-live="polite">
     <div class="hud-card">
-      <div class="hud-top-label">HOLDING ESC TO EXIT...</div>
+      <div class="hud-top-label">{title}</div>
 
       <div class="hud-dial">
         <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
@@ -49,7 +53,7 @@
         <span class="hud-time">{formattedTime}</span>
       </div>
 
-      <div class="hud-cancel-hint">Hold Shift + Esc to exit &bull; Release to stay</div>
+      <div class="hud-cancel-hint">{hint}</div>
     </div>
   </div>
 {/if}

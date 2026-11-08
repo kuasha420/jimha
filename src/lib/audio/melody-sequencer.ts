@@ -143,19 +143,19 @@ export class MelodySequencer {
         : Date.now() - this.lastInputTimestamp;
 
     if (elapsed < 3000) {
-      return isBass ? 0.02 : 0.0;
+      return isBass ? 0.035 : 0.0;
     }
 
     if (elapsed < 6000) {
       const progress = (elapsed - 3000) / 3000;
       if (!isBass) {
         const ramp = progress * progress;
-        return 0.06 * ramp;
+        return 0.1 * ramp;
       }
-      return 0.02 + (0.04 - 0.02) * progress;
+      return 0.035 + (0.07 - 0.035) * progress;
     }
 
-    return isBass ? 0.04 : 0.06;
+    return isBass ? 0.07 : 0.1;
   }
 
   public start(): void {

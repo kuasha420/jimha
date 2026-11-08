@@ -8,7 +8,11 @@
   import UnlockCelebrationBanner from './lib/components/UnlockCelebrationBanner.svelte';
   import { JimhaAudioManager } from './lib/audio/audio-manager';
   import { RekkaBuffer, KONAMI_SEQUENCE, QUICK_SWITCH_SEQUENCE } from './lib/engine/rekka';
-  import { GamepadManager, type GamepadButtonEvent } from './lib/engine/gamepad';
+  import {
+    GamepadManager,
+    type GamepadButtonEvent,
+    type GamepadButtonId,
+  } from './lib/engine/gamepad';
   import { STICKERS } from './lib/content/stickers';
   import type { InstrumentId } from './lib/content/instruments';
   import { APP_NAME } from './lib/constants';
@@ -75,6 +79,23 @@
   let altTabStartTime = 0;
   let altTabHoldProgress = $state(0.0);
   let altTabRemainingSec = $state(2.0);
+
+  // Gamepad SELECT + START Exit hold state (2.5s continuous hold)
+  const pressedGamepadButtons = new Set<GamepadButtonId>();
+  let isGamepadExitPressed = $state(false);
+  let gamepadExitStartTime = 0;
+  let gamepadExitHoldProgress = $state(0.0);
+  let gamepadExitRemainingSec = $state(2.5);
+
+  // Touchscreen Parent Lock Exit hold state (2.5s continuous hold)
+  let isTouchExitPressed = $state(false);
+  let touchExitStartTime = 0;
+  let touchExitHoldProgress = $state(0.0);
+  let touchExitRemainingSec = $state(2.5);
+
+  // Gamepad L3 + R3 Switcher hold state (1.5s continuous hold)
+  let isL3R3Pressed = false;
+  let l3r3StartTime = 0;
 
   // Rekka combo engine & Virtual Switcher
   const rekka = new RekkaBuffer(0.8);
@@ -357,12 +378,12 @@
     return false;
   }
 
-  function checkArcadeCombos(): boolean {
+  function checkArcadeCombos(source: 'keyboard' | 'gamepad' = 'keyboard'): boolean {
     if (rekka.matches(KONAMI_SEQUENCE)) {
       void triggerKonamiHandover();
       return true;
     }
-    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+    if (source === 'keyboard' && rekka.matches(QUICK_SWITCH_SEQUENCE)) {
       void openVirtualSwitcher();
       return true;
     }
@@ -387,10 +408,6 @@
     }
     if (['RIGHT', 'DOWN', 'RB', 'RT'].includes(event.buttonId)) {
       switcherRef?.cycleNext();
-      if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-        virtualSwitcherActive = false;
-        void triggerQuickSwitchHandover();
-      }
       return true;
     }
     if (['LEFT', 'UP', 'LB', 'LT'].includes(event.buttonId)) {
@@ -433,7 +450,7 @@
     const token = normalizeKeyToken(event.key);
     rekka.add(token);
 
-    if (checkArcadeCombos()) {
+    if (checkArcadeCombos('keyboard')) {
       return;
     }
 
@@ -475,6 +492,25 @@
   }
 
   function handleGamepadButtonDown(event: GamepadButtonEvent) {
+    pressedGamepadButtons.add(event.buttonId);
+
+    // Check Gamepad SELECT + START Exit Gate
+    const selectDown = pressedGamepadButtons.has('SELECT');
+    const startDown = pressedGamepadButtons.has('START');
+
+    if (pressedGamepadButtons.size > 2) {
+      isGamepadExitPressed = false;
+      gamepadExitHoldProgress = 0;
+    } else if (selectDown && startDown) {
+      if (!isGamepadExitPressed) {
+        isGamepadExitPressed = true;
+        gamepadExitStartTime = performance.now();
+        gamepadExitHoldProgress = 0;
+        gamepadExitRemainingSec = 2.5;
+      }
+      return;
+    }
+
     if (isStickerBookOpen) {
       if (['B', 'START', 'SELECT'].includes(event.buttonId)) {
         isStickerBookOpen = false;
@@ -486,8 +522,8 @@
       return;
     }
 
-    // Check combos from gamepad RekkaBuffer feeds
-    if (checkArcadeCombos()) {
+    // Check combos from gamepad RekkaBuffer feeds (Konami only)
+    if (checkArcadeCombos('gamepad')) {
       return;
     }
 
@@ -509,47 +545,124 @@
     }
   }
 
-  function tick() {
-    const now = performance.now();
+  function handleGamepadButtonUp(event: GamepadButtonEvent) {
+    pressedGamepadButtons.delete(event.buttonId);
 
-    // Check Shift+ESC compound hold
-    if (isEscPressed) {
-      if (pressedKeys.size > 2) {
-        isEscPressed = false;
-        escHoldProgress = 0;
-      } else {
-        const elapsed = (now - escStartTime) / 1000;
-        const targetSec = profile.settings?.esc_hold_seconds || 2.5;
-        escHoldProgress = Math.min(1.0, elapsed / targetSec);
-        escRemainingSec = Math.max(0.0, targetSec - elapsed);
-        if (escHoldProgress >= 1.0) {
-          isEscPressed = false;
-          void callTauri('kiosk_close');
-        }
+    if (event.buttonId === 'SELECT' || event.buttonId === 'START') {
+      isGamepadExitPressed = false;
+      gamepadExitHoldProgress = 0;
+    }
+
+    if (event.buttonId === 'L3' || event.buttonId === 'R3') {
+      isL3R3Pressed = false;
+    }
+  }
+
+  function tickEscHold(now: number): void {
+    if (!isEscPressed) return;
+    if (pressedKeys.size > 2) {
+      isEscPressed = false;
+      escHoldProgress = 0;
+      return;
+    }
+    const elapsed = (now - escStartTime) / 1000;
+    const targetSec = profile.settings?.esc_hold_seconds || 2.5;
+    escHoldProgress = Math.min(1.0, elapsed / targetSec);
+    escRemainingSec = Math.max(0.0, targetSec - elapsed);
+    if (escHoldProgress >= 1.0) {
+      isEscPressed = false;
+      void callTauri('kiosk_close');
+    }
+  }
+
+  function tickGamepadExitHold(now: number): void {
+    if (!isGamepadExitPressed) return;
+    if (
+      pressedGamepadButtons.size > 2 ||
+      !pressedGamepadButtons.has('SELECT') ||
+      !pressedGamepadButtons.has('START')
+    ) {
+      isGamepadExitPressed = false;
+      gamepadExitHoldProgress = 0;
+      return;
+    }
+    const elapsed = (now - gamepadExitStartTime) / 1000;
+    const targetSec = 2.5;
+    gamepadExitHoldProgress = Math.min(1.0, elapsed / targetSec);
+    gamepadExitRemainingSec = Math.max(0.0, targetSec - elapsed);
+    if (gamepadExitHoldProgress >= 1.0) {
+      isGamepadExitPressed = false;
+      void callTauri('kiosk_close');
+    }
+  }
+
+  function tickTouchExitHold(now: number): void {
+    if (!isTouchExitPressed) return;
+    const elapsed = (now - touchExitStartTime) / 1000;
+    const targetSec = 2.5;
+    touchExitHoldProgress = Math.min(1.0, elapsed / targetSec);
+    touchExitRemainingSec = Math.max(0.0, targetSec - elapsed);
+    if (touchExitHoldProgress >= 1.0) {
+      isTouchExitPressed = false;
+      void callTauri('kiosk_close');
+    }
+  }
+
+  function tickL3R3SwitcherHold(now: number): void {
+    const l3Down = pressedGamepadButtons.has('L3');
+    const r3Down = pressedGamepadButtons.has('R3');
+    if (!l3Down || !r3Down || pressedGamepadButtons.size > 2) {
+      isL3R3Pressed = false;
+      return;
+    }
+
+    if (!isL3R3Pressed) {
+      isL3R3Pressed = true;
+      l3r3StartTime = now;
+      return;
+    }
+
+    const elapsed = (now - l3r3StartTime) / 1000;
+    if (elapsed >= 1.5) {
+      isL3R3Pressed = false;
+      if (!virtualSwitcherActive) {
+        void openVirtualSwitcher();
       }
     }
+  }
 
-    // Check Alt+Tab hold
-    if (isAltTabPressed) {
-      const elapsed = (now - altTabStartTime) / 1000;
-      altTabHoldProgress = Math.min(1.0, elapsed / 2.0);
-      altTabRemainingSec = Math.max(0.0, 2.0 - elapsed);
-      if (altTabHoldProgress >= 1.0) {
-        isAltTabPressed = false;
-        void triggerDesktopHandover();
-      }
+  function tickAltTabHold(now: number): void {
+    if (!isAltTabPressed) return;
+    const elapsed = (now - altTabStartTime) / 1000;
+    altTabHoldProgress = Math.min(1.0, elapsed / 2.0);
+    altTabRemainingSec = Math.max(0.0, 2.0 - elapsed);
+    if (altTabHoldProgress >= 1.0) {
+      isAltTabPressed = false;
+      void triggerDesktopHandover();
     }
+  }
 
-    // Virtual Switcher idle timeout (15s)
-    if (virtualSwitcherActive && now - switcherLastActionTime > 15000) {
-      virtualSwitcherActive = false;
-    }
-
-    // Check lullaby listener achievement (20s uninterrupted idle with BGM)
+  function tickIdleLullaby(now: number): void {
     if (!lullabyTriggeredInIdleCycle && now - lastInputTime >= 20000) {
       lullabyTriggeredInIdleCycle = true;
       void recordProgressionEvent('lullaby', 'LULLABY');
     }
+  }
+
+  function tick() {
+    const now = performance.now();
+
+    tickEscHold(now);
+    tickGamepadExitHold(now);
+    tickTouchExitHold(now);
+    tickL3R3SwitcherHold(now);
+    tickAltTabHold(now);
+
+    if (virtualSwitcherActive && now - switcherLastActionTime > 15000) {
+      virtualSwitcherActive = false;
+    }
+
+    tickIdleLullaby(now);
 
     rekka.checkDecay(Date.now() / 1000);
 
@@ -562,10 +675,50 @@
 
   function handleBlur(): void {
     pressedKeys.clear();
+    pressedGamepadButtons.clear();
     isEscPressed = false;
     escHoldProgress = 0;
     isAltTabPressed = false;
     altTabHoldProgress = 0;
+    isGamepadExitPressed = false;
+    gamepadExitHoldProgress = 0;
+    isTouchExitPressed = false;
+    touchExitHoldProgress = 0;
+    isL3R3Pressed = false;
+  }
+
+  function handleParentLockPointerDown(): void {
+    isTouchExitPressed = true;
+    touchExitStartTime = performance.now();
+    touchExitHoldProgress = 0;
+    touchExitRemainingSec = 2.5;
+  }
+
+  function handleParentLockPointerUp(): void {
+    if (isTouchExitPressed) {
+      const elapsed = (performance.now() - touchExitStartTime) / 1000;
+      isTouchExitPressed = false;
+      touchExitHoldProgress = 0;
+      // Quick tap (<0.6s) opens Virtual Switcher
+      if (elapsed < 0.6 && !virtualSwitcherActive) {
+        void openVirtualSwitcher();
+      }
+    }
+  }
+
+  function handleParentLockPointerCancel(): void {
+    isTouchExitPressed = false;
+    touchExitHoldProgress = 0;
+  }
+
+  function handleGesture(e: Event): void {
+    e.preventDefault();
+  }
+
+  function handleWheel(e: WheelEvent): void {
+    if (e.ctrlKey) {
+      e.preventDefault();
+    }
   }
 
   onMount(() => {
@@ -586,6 +739,7 @@
     gamepadManager = new GamepadManager({
       rekkaBuffer: rekka,
       onButtonDown: handleGamepadButtonDown,
+      onButtonUp: handleGamepadButtonUp,
     });
     gamepadManager.attach();
 
@@ -605,6 +759,10 @@
 
     window.addEventListener('blur', handleBlur);
     window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    window.addEventListener('gesturestart', handleGesture, { passive: false });
+    window.addEventListener('gesturechange', handleGesture, { passive: false });
+    window.addEventListener('gestureend', handleGesture, { passive: false });
+    window.addEventListener('wheel', handleWheel, { passive: false });
 
     // Initial warm-up on first user interaction
     const unlockAudio = () => {
@@ -635,6 +793,11 @@
     window.removeEventListener('contextmenu', handleContextMenu, {
       capture: true,
     });
+    window.removeEventListener('gesturestart', handleGesture);
+    window.removeEventListener('gesturechange', handleGesture);
+    window.removeEventListener('gestureend', handleGesture);
+    window.removeEventListener('wheel', handleWheel);
+
     if (gamepadManager) {
       gamepadManager.detach();
       gamepadManager = null;
@@ -658,6 +821,20 @@
 
   {#if isEscPressed || escHoldProgress > 0}
     <ExitHoldHud progress={escHoldProgress} remainingSec={escRemainingSec} />
+  {:else if isGamepadExitPressed || gamepadExitHoldProgress > 0}
+    <ExitHoldHud
+      progress={gamepadExitHoldProgress}
+      remainingSec={gamepadExitRemainingSec}
+      title="CONTROLLER EXIT HOLD..."
+      hint="Hold SELECT + START to exit • Release to stay"
+    />
+  {:else if isTouchExitPressed || touchExitHoldProgress > 0}
+    <ExitHoldHud
+      progress={touchExitHoldProgress}
+      remainingSec={touchExitRemainingSec}
+      title="TOUCH EXIT HOLD..."
+      hint="Hold Parent Lock to exit • Release to stay"
+    />
   {/if}
 
   {#if isAltTabPressed || altTabHoldProgress > 0}
@@ -733,11 +910,23 @@
     <div class="hud-pill counter-pill">
       <span>Magical Touches: {touchCount}</span>
     </div>
+
+    <button
+      type="button"
+      class="hud-pill parent-pill"
+      aria-label="Parent Lock (Hold 2.5s to exit, tap to switch)"
+      onpointerdown={handleParentLockPointerDown}
+      onpointerup={handleParentLockPointerUp}
+      onpointercancel={handleParentLockPointerCancel}
+      onclick={(e) => e.preventDefault()}
+    >
+      <span>🔒 Parent Lock</span>
+    </button>
   </header>
 </main>
 
 <style>
-  :global(html, body) {
+  :global(html, body, #app) {
     margin: 0;
     padding: 0;
     width: 100vw;
@@ -752,8 +941,10 @@
       'Segoe UI',
       Roboto,
       sans-serif;
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .jimha-app {
@@ -761,6 +952,9 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .hud-header {
@@ -826,6 +1020,25 @@
     transform: scale(1.05);
     border-color: rgba(255, 214, 0, 0.8);
     box-shadow: 0 4px 16px rgba(255, 214, 0, 0.3);
+  }
+
+  .parent-pill {
+    pointer-events: auto;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(255, 64, 129, 0.2), rgba(255, 23, 68, 0.2));
+    border-color: rgba(255, 64, 129, 0.4);
+    color: #ff8a80;
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .parent-pill:hover,
+  .parent-pill:active {
+    transform: scale(1.05);
+    border-color: rgba(255, 64, 129, 0.8);
+    box-shadow: 0 4px 16px rgba(255, 64, 129, 0.3);
   }
 
   .escape-parent-hint {

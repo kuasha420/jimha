@@ -64,10 +64,10 @@ describe('AmbientBgmEngine Contract', () => {
     expect(engine.getMode()).toBe('idle');
     expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(3000, 10);
 
-    // Switch to playing mode -> 650 Hz with 0.3s transition
+    // Switch to playing mode -> 900 Hz with 0.3s transition
     engine.setMode('playing');
     expect(engine.getMode()).toBe('playing');
-    expect(setTargetAtTime).toHaveBeenCalledWith(650, 10, 0.3);
+    expect(setTargetAtTime).toHaveBeenCalledWith(900, 10, 0.3);
 
     // Switch to ui mode -> 750 Hz with 0.3s transition
     engine.setMode('ui');
