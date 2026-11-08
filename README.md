@@ -204,17 +204,41 @@ pnpm dev
 pnpm tauri dev
 ```
 
-### Hermetic Verification Suite
+### Hermetic Verification & Multi-Tier Quality Gates
 
-In adherence to **PSL-INV-001** and **PSL-INV-002**, verify the complete stack with sub-second test benchmarks:
+In adherence to **PSL-INV-001** and **PSL-INV-002**, Jimha enforces a zero-tolerance multi-tier verification standard with sub-second test benchmarks:
 
 ```bash
-# Run Vitest frontend test suite (69 tests, <1.7s)
+# 1. Turnkey composite verification gate (svelte-check, eslint, clippy, cargo fmt, vitest, cargo test, vite build)
+pnpm verify
+
+# 2. RFC-051 Diff-aware affected testing (sub-second fast-path, <200ms)
+pnpm test:diff
+
+# 3. Full Vitest frontend test suite (13 test suites, 78 tests, <1.0s)
 pnpm test
 
-# Run Rust native backend test suite (20 tests, <0.1s)
-cargo test --manifest-path src-tauri/Cargo.toml
+# 4. Full Rust native backend test suite (20 tests, <0.03s)
+pnpm test:rust
+# or: cargo test --manifest-path src-tauri/Cargo.toml
+
+# 5. Multi-tier linting, clippy & formatting
+pnpm lint          # ESLint 10 Flat Config (complexity <= 15, max-depth <= 4)
+pnpm clippy        # Rust Cargo lints table (-D warnings, unsafe_code = forbid)
+pnpm format        # Prettier formatting across entire repository
+pnpm format:check  # Assert 100% Prettier compliance
+
+# 6. Evergreen dependency hygiene audit
+pnpm audit:deps
 ```
+
+### Pre-Commit Staged Automation
+
+Jimha configures zero-friction local git hooks powered by `simple-git-hooks` and `lint-staged`:
+
+- Staged TypeScript, Svelte, and JavaScript files automatically run `eslint --fix` and `prettier --write`.
+- Staged Rust files automatically run `cargo fmt`.
+- Non-code assets (JSON, Markdown, CSS, HTML) automatically run `prettier --write`.
 
 ---
 

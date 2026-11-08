@@ -160,6 +160,12 @@ _Focus: Cleanroom verification, hermetic builds, distribution packaging, and sub
 - **Sub-Second Test SLA**: Unit test suites must execute in $< 1.0$ second (frontend) and $< 0.1$ second (Rust backend).
 - **Cleanroom Verification**: Strict separation between system integrations and application core logic.
 
+### Quality & Ergonomics Milestones
+
+- [x] **Zero-Tolerance Multi-Tier Linting**: ESLint 10 Flat Config (`complexity <= 15`, `max-depth <= 4`, `@typescript-eslint/no-floating-promises`) + Cargo `[lints]` table (`unsafe_code = "forbid"`, `unwrap_used = "deny"`).
+- [x] **RFC-051 Diff-Aware Affected Testing & Pre-Commit Staged Hooks**: `pnpm test:diff` (<200ms inner-loop feedback) + `simple-git-hooks` and `lint-staged`.
+- [x] **Evergreen-by-Default Automated Contract**: `src/lib/evergreen-deps.test.ts` asserting modern runtime dependencies and `src/lib/docs-alignment.test.ts` preventing documentation drift.
+
 ### Distribution Targets
 
 - [x] **Arch Linux AUR / Local `makepkg`**: Production-tested `PKGBUILD` compiling native binary with desktop and metainfo integration.

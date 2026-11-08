@@ -229,8 +229,33 @@ The frontend state architecture avoids legacy stores in favor of modern **Svelte
 
 ## 7. Verification Standards & Benchmarks
 
-In compliance with **PSL-INV-001** and **PSL-INV-002**:
+In compliance with **PSL-INV-001** and **PSL-INV-002**, Jimha enforces a multi-tier hermetic verification suite with sub-second benchmark SLAs:
 
-- **Frontend Test Suite**: 11 test suites comprising 69 vitest unit tests executing in **<1.7 seconds**.
-- **Rust Backend Suite**: Hermetic cargo unit tests verifying RIFF header construction, UUID string parsing, base64 encoding, and KWin script synthesis executing in **<0.5 seconds**.
-- **Zero Synthetic Mocks**: Audio tests validate real generated binary WAV buffers and byte headers.
+### A. Sub-Second Test Suites
+
+- **Frontend Test Suite**: 13 frontend test suites comprising 78 vitest unit tests executing in **<1.0s** (803ms benchmark).
+- **Rust Backend Suite**: 20 hermetic cargo unit tests verifying RIFF header construction, UUID string parsing, base64 encoding, and KWin script synthesis executing in **<0.03s** (0.02s benchmark).
+- **Turnkey Composite Gate**: `pnpm verify` executes all 7 verification tiers (svelte-check, eslint, clippy, cargo fmt, vitest, cargo test, vite build) in a single unified pipeline.
+- **Zero Synthetic Mocks**: Audio tests validate real generated binary WAV buffers, RIFF byte headers, and harmonic frequencies.
+
+### B. Multi-Tier Static Analysis & Linting
+
+- **ESLint 10 Flat Config (`eslint.config.js`)**:
+  - Enforces `complexity <= 15` and `max-depth <= 4` across all components and business logic.
+  - Strict `@typescript-eslint/no-floating-promises` to eliminate unhandled asynchronous operations.
+  - Svelte 5 Runes support via `eslint-plugin-svelte` and `typescript-eslint`.
+- **Rust Cargo `[lints]` Table (`src-tauri/Cargo.toml`)**:
+  - Zero compiler warnings tolerated (`-D warnings`).
+  - Strict safety guarantees: `unsafe_code = "forbid"`, `unwrap_used = "deny"`, `float_cmp = "deny"`.
+
+### C. RFC-051 Diff-Aware Affected Testing
+
+- Supported via `.agyis/test_manifest.json` and `pnpm test:diff`.
+- Leverages git diff heuristics to discover and execute only the specific test suites affected by modified files in **<200ms**, dramatically accelerating inner-loop developer feedback while maintaining full-suite safety for commit gates.
+
+### D. Architectural Invariant Contracts
+
+- **Evergreen-by-Default Dependency Contract (`src/lib/evergreen-deps.test.ts`)**:
+  - Automatically verifies `package.json` against semantic versioning requirements, ensuring major components (Tauri v2, Pixi.js v8, Svelte 5, TypeScript 6, Vite 8, Vitest 5, ESLint 10) remain evergreen without deprecated APIs or syntax.
+- **Anti-Drift Documentation Contract (`src/lib/docs-alignment.test.ts`)**:
+  - Automatically validates documentation files (`README.md`, `docs/DAD_MODE_INVARIANTS.md`, `docs/LORE.md`, `docs/ARCHITECTURE.md`) against concrete runtime values (e.g. 25-bubble lagoon capacity, 7 stickers, 11 pentatonic frequencies, Self-Contained Product Invariant), ensuring documentation never drifts from code.
