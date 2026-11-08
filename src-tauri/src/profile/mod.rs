@@ -44,6 +44,7 @@ impl Default for ChildProfile {
     }
 }
 
+#[derive(Debug)]
 pub struct ProfileStore {
     path: PathBuf,
     profile: ChildProfile,
@@ -65,18 +66,15 @@ impl ProfileStore {
     pub fn load_or_default(path: PathBuf) -> Self {
         if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(content) => {
-                    match serde_json::from_str::<ChildProfile>(&content) {
-                        Ok(profile) => return Self { path, profile },
-                        Err(err) => {
-                            eprintln!("[JimhaProfile] Corrupted profile JSON: {}. Re-initializing default.", err);
-                        }
+                Ok(content) => match serde_json::from_str::<ChildProfile>(&content) {
+                    Ok(profile) => return Self { path, profile },
+                    Err(err) => {
+                        eprintln!("[JimhaProfile] Corrupted profile JSON: {err}. Re-initializing default.");
                     }
-                }
+                },
                 Err(err) => {
                     eprintln!(
-                        "[JimhaProfile] Failed to read profile: {}. Re-initializing default.",
-                        err
+                        "[JimhaProfile] Failed to read profile: {err}. Re-initializing default."
                     );
                 }
             }
@@ -87,10 +85,7 @@ impl ProfileStore {
             profile: ChildProfile::default(),
         };
         if let Err(err) = store.save() {
-            eprintln!(
-                "[JimhaProfile] Warning: Failed to persist initial default profile: {}",
-                err
-            );
+            eprintln!("[JimhaProfile] Warning: Failed to persist initial default profile: {err}");
         }
         store
     }
@@ -99,12 +94,12 @@ impl ProfileStore {
         if let Some(parent) = self.path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create profile dir: {}", e))?;
+                    .map_err(|e| format!("Failed to create profile dir: {e}"))?;
             }
         }
         let json = serde_json::to_string_pretty(&self.profile)
-            .map_err(|e| format!("Failed to serialize profile: {}", e))?;
-        fs::write(&self.path, json).map_err(|e| format!("Failed to write profile: {}", e))?;
+            .map_err(|e| format!("Failed to serialize profile: {e}"))?;
+        fs::write(&self.path, json).map_err(|e| format!("Failed to write profile: {e}"))?;
         Ok(())
     }
 
@@ -131,7 +126,6 @@ impl ProfileStore {
             "play_time" => {
                 self.profile.total_play_time_sec += 1;
             }
-            "konami" => {}
             _ => {}
         }
 
@@ -247,7 +241,7 @@ mod tests {
         assert_eq!(profile.total_play_time_sec, 0);
         assert_eq!(profile.total_key_presses, 0);
         assert_eq!(profile.total_bubbles_popped, 0);
-        assert!(profile.unlocked_stickers.is_empty());
+        assert_eq!(profile.unlocked_stickers, [] as [std::string::String; 0]);
         assert_eq!(profile.settings.instrument, "celesta");
         assert_eq!(profile.settings.esc_hold_seconds, 2.5);
         assert_eq!(profile.settings.audio_volume, 0.8);

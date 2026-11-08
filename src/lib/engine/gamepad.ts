@@ -209,102 +209,79 @@ export class GamepadManager {
         this.options.onConnected?.(pad.index, pad.id);
       }
 
-      for (let btnIdx = 0; btnIdx < pad.buttons.length; btnIdx++) {
-        const btn = pad.buttons[btnIdx];
-        if (!btn) continue;
-        const isPressed = btn.pressed || btn.value > 0.5;
-        const wasPressed = prevButtons[btnIdx] || false;
+      this.pollPadButtons(pad, prevButtons);
+      this.pollPadAxes(pad);
+    }
+  }
 
-        const buttonId = STANDARD_BUTTON_MAP[btnIdx];
-        if (buttonId) {
-          const meta = GAMEPAD_BUTTON_META[buttonId];
+  private pollPadButtons(pad: GamepadLike, prevButtons: boolean[]): void {
+    for (let btnIdx = 0; btnIdx < pad.buttons.length; btnIdx++) {
+      const btn = pad.buttons[btnIdx];
+      if (!btn) continue;
+      const isPressed = btn.pressed || btn.value > 0.5;
+      const wasPressed = prevButtons[btnIdx] || false;
 
-          if (isPressed && !wasPressed) {
-            // Button Down Edge
-            prevButtons[btnIdx] = true;
+      const buttonId = STANDARD_BUTTON_MAP[btnIdx];
+      if (!buttonId) continue;
 
-            // Feed Rekka if eligible
-            if (meta.isRekkaToken && meta.rekkaToken && this.rekkaBuffer) {
-              this.rekkaBuffer.add(meta.rekkaToken);
-            }
-
-            this.options.onButtonDown?.({
-              gamepadIndex: pad.index,
-              gamepadId: pad.id,
-              buttonId,
-              rawIndex: btnIdx,
-              value: btn.value,
-              pressed: true,
-              meta,
-            });
-          } else if (!isPressed && wasPressed) {
-            // Button Up Edge
-            prevButtons[btnIdx] = false;
-            this.options.onButtonUp?.({
-              gamepadIndex: pad.index,
-              gamepadId: pad.id,
-              buttonId,
-              rawIndex: btnIdx,
-              value: btn.value,
-              pressed: false,
-              meta,
-            });
-          }
+      const meta = GAMEPAD_BUTTON_META[buttonId];
+      if (isPressed && !wasPressed) {
+        prevButtons[btnIdx] = true;
+        if (meta.isRekkaToken && meta.rekkaToken && this.rekkaBuffer) {
+          this.rekkaBuffer.add(meta.rekkaToken);
         }
-      }
-
-      // Check Axes (Analog Sticks to virtual D-pad mapping with deadzone & hysteresis)
-      if (pad.axes && pad.axes.length >= 2) {
-        let prevAxis = this.previousAxisStates.get(pad.index);
-        if (!prevAxis) {
-          prevAxis = { up: false, down: false, left: false, right: false };
-          this.previousAxisStates.set(pad.index, prevAxis);
-        }
-
-        const deadzone = this.options.deadzone ?? 0.25;
-        const rawX = pad.axes[0] ?? 0;
-        const rawY = pad.axes[1] ?? 0;
-        const axisX = Math.abs(rawX) > deadzone ? rawX : 0;
-        const axisY = Math.abs(rawY) > deadzone ? rawY : 0;
-
-        this.checkVirtualAxis(
-          pad,
-          'LEFT',
-          axisX,
-          false,
-          prevAxis.left,
-          deadzone,
-          (val) => (prevAxis!.left = val)
-        );
-        this.checkVirtualAxis(
-          pad,
-          'RIGHT',
-          axisX,
-          true,
-          prevAxis.right,
-          deadzone,
-          (val) => (prevAxis!.right = val)
-        );
-        this.checkVirtualAxis(
-          pad,
-          'UP',
-          axisY,
-          false,
-          prevAxis.up,
-          deadzone,
-          (val) => (prevAxis!.up = val)
-        );
-        this.checkVirtualAxis(
-          pad,
-          'DOWN',
-          axisY,
-          true,
-          prevAxis.down,
-          deadzone,
-          (val) => (prevAxis!.down = val)
-        );
+        this.options.onButtonDown?.({
+          gamepadIndex: pad.index,
+          gamepadId: pad.id,
+          buttonId,
+          rawIndex: btnIdx,
+          value: btn.value,
+          pressed: true,
+          meta,
+        });
+      } else if (!isPressed && wasPressed) {
+        prevButtons[btnIdx] = false;
+        this.options.onButtonUp?.({
+          gamepadIndex: pad.index,
+          gamepadId: pad.id,
+          buttonId,
+          rawIndex: btnIdx,
+          value: btn.value,
+          pressed: false,
+          meta,
+        });
       }
     }
+  }
+
+  private pollPadAxes(pad: GamepadLike): void {
+    if (!pad.axes || pad.axes.length < 2) return;
+
+    let prevAxis = this.previousAxisStates.get(pad.index);
+    if (!prevAxis) {
+      prevAxis = { up: false, down: false, left: false, right: false };
+      this.previousAxisStates.set(pad.index, prevAxis);
+    }
+
+    const deadzone = this.options.deadzone ?? 0.25;
+    const rawX = pad.axes[0] ?? 0;
+    const rawY = pad.axes[1] ?? 0;
+    const axisX = Math.abs(rawX) > deadzone ? rawX : 0;
+    const axisY = Math.abs(rawY) > deadzone ? rawY : 0;
+
+    const currentAxis = prevAxis;
+    this.checkVirtualAxis(pad, 'LEFT', axisX, false, currentAxis.left, deadzone, (val) => {
+      currentAxis.left = val;
+    });
+    this.checkVirtualAxis(pad, 'RIGHT', axisX, true, currentAxis.right, deadzone, (val) => {
+      currentAxis.right = val;
+    });
+    this.checkVirtualAxis(pad, 'UP', axisY, false, currentAxis.up, deadzone, (val) => {
+      currentAxis.up = val;
+    });
+    this.checkVirtualAxis(pad, 'DOWN', axisY, true, currentAxis.down, deadzone, (val) => {
+      currentAxis.down = val;
+    });
   }
 
   private checkVirtualAxis(
@@ -319,22 +296,13 @@ export class GamepadManager {
     const meta = GAMEPAD_BUTTON_META[buttonId];
     const engagementThreshold = 0.5;
 
-    let shouldEngage = false;
-    let shouldRelease = false;
+    const shouldEngage = isPositiveDirection
+      ? !wasEngaged && axisValue >= engagementThreshold
+      : !wasEngaged && axisValue <= -engagementThreshold;
 
-    if (isPositiveDirection) {
-      if (!wasEngaged && axisValue >= engagementThreshold) {
-        shouldEngage = true;
-      } else if (wasEngaged && axisValue < deadzone) {
-        shouldRelease = true;
-      }
-    } else {
-      if (!wasEngaged && axisValue <= -engagementThreshold) {
-        shouldEngage = true;
-      } else if (wasEngaged && axisValue > -deadzone) {
-        shouldRelease = true;
-      }
-    }
+    const shouldRelease = isPositiveDirection
+      ? wasEngaged && axisValue < deadzone
+      : wasEngaged && axisValue > -deadzone;
 
     if (shouldEngage) {
       setEngaged(true);

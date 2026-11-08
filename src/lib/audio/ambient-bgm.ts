@@ -47,7 +47,9 @@ export class AmbientBgmEngine {
       try {
         this.filterNode.connect(this.masterGain);
         this.masterGain.connect(ctx.destination);
-      } catch (_) {}
+      } catch (err) {
+        console.warn('[AmbientBgmEngine] Failed to connect audio graph nodes:', err);
+      }
     }
   }
 
@@ -101,8 +103,8 @@ export class AmbientBgmEngine {
     if (!this.ctx || !this.masterGain) return;
     const now = this.ctx.currentTime;
 
-    let targetGain = 0.15;
-    let targetCutoff = 3500;
+    let targetGain: number;
+    let targetCutoff: number;
 
     if (this.mode === 'playing') {
       targetGain = 0.05; // Duck to 0.05 during active key smashing
@@ -129,7 +131,9 @@ export class AmbientBgmEngine {
           this.filterNode.frequency.setValueAtTime(targetCutoff, now);
         }
       }
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[AmbientBgmEngine] Failed to schedule audio parameter transition:', err);
+    }
   }
 
   private scheduleNextDrop(): void {
@@ -168,6 +172,8 @@ export class AmbientBgmEngine {
 
       osc.start(now);
       osc.stop(now + 2.3);
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[AmbientBgmEngine] Failed to trigger ambient drop:', err);
+    }
   }
 }

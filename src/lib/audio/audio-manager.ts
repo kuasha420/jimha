@@ -8,14 +8,20 @@ let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unkn
 function invokeNativeAudio(keyText: string): void {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
   if (cachedInvoke) {
-    cachedInvoke('audio_play_key', { key: keyText }).catch(() => {});
+    cachedInvoke('audio_play_key', { key: keyText }).catch((err) => {
+      console.warn('[JimhaAudioManager] Native audio IPC error:', err);
+    });
   } else {
     import('@tauri-apps/api/core')
       .then(({ invoke }) => {
         cachedInvoke = invoke;
-        invoke('audio_play_key', { key: keyText }).catch(() => {});
+        invoke('audio_play_key', { key: keyText }).catch((err) => {
+          console.warn('[JimhaAudioManager] Native audio IPC error:', err);
+        });
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[JimhaAudioManager] Failed to load Tauri core invoke:', err);
+      });
   }
 }
 
@@ -204,7 +210,9 @@ export class JimhaAudioManager {
     if (this.masterGain) {
       try {
         this.masterGain.disconnect();
-      } catch (_) {}
+      } catch (err) {
+        console.warn('[JimhaAudioManager] Error disconnecting master gain node:', err);
+      }
       this.masterGain = null;
     }
     if (this.ctx) {

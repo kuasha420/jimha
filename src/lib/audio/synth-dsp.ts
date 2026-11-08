@@ -18,6 +18,45 @@ export interface SynthesizedChime {
   peak: number;
 }
 
+function computeHarmonicSample(
+  t: number,
+  frequency: number,
+  multipliers: readonly number[],
+  gains: readonly number[],
+  decayBody: number,
+  decayShimmer: number,
+  phaseOffset: number
+): [number, number] {
+  let sumL = 0;
+  let sumR = 0;
+
+  for (let h = 0; h < multipliers.length; h++) {
+    const mult = multipliers[h] ?? 1.0;
+    const gain = gains[h] ?? 0.0;
+    const decay = mult <= 2.0 ? decayBody : decayShimmer;
+
+    // Slight stereo spread on overtones
+    const phaseL = h === 2 ? phaseOffset : 0;
+    const phaseR = h === 0 ? phaseOffset * 0.5 : h === 3 ? phaseOffset : 0;
+
+    sumL += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseL) * decay;
+    sumR += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseR) * decay;
+  }
+
+  return [sumL, sumR];
+}
+
+function normalizeStereoBuffers(left: Float32Array, right: Float32Array, maxPeak: number): void {
+  const scale = 0.92 / maxPeak;
+  const nSamples = left.length;
+  for (let i = 0; i < nSamples; i++) {
+    const l = left[i];
+    const r = right[i];
+    if (l !== undefined) left[i] = Math.max(-1.0, Math.min(1.0, l * scale));
+    if (r !== undefined) right[i] = Math.max(-1.0, Math.min(1.0, r * scale));
+  }
+}
+
 export function synthesizeChimeSamples(
   frequency: number,
   sampleRate: number = 44100,
@@ -51,21 +90,15 @@ export function synthesizeChimeSamples(
     const decayBody = Math.exp(-decayBodyRate * t);
     const decayShimmer = Math.exp(-decayShimmerRate * t);
 
-    let sumL = 0;
-    let sumR = 0;
-
-    for (let h = 0; h < multipliers.length; h++) {
-      const mult = multipliers[h] ?? 1.0;
-      const gain = gains[h] ?? 0.0;
-      const decay = mult <= 2.0 ? decayBody : decayShimmer;
-
-      // Slight stereo spread on overtones
-      const phaseL = h === 2 ? phaseOffset : 0;
-      const phaseR = h === 0 ? phaseOffset * 0.5 : h === 3 ? phaseOffset : 0;
-
-      sumL += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseL) * decay;
-      sumR += gain * Math.sin(2.0 * Math.PI * (mult * frequency) * t + phaseR) * decay;
-    }
+    const [sumL, sumR] = computeHarmonicSample(
+      t,
+      frequency,
+      multipliers,
+      gains,
+      decayBody,
+      decayShimmer,
+      phaseOffset
+    );
 
     const valL = attack * sumL;
     const valR = attack * sumR;
@@ -80,13 +113,7 @@ export function synthesizeChimeSamples(
   }
 
   // Normalize to 92% full scale (-0.7 dB) to prevent clipping while maximizing clarity
-  const scale = 0.92 / maxPeak;
-  for (let i = 0; i < nSamples; i++) {
-    const l = left[i];
-    const r = right[i];
-    if (l !== undefined) left[i] = Math.max(-1.0, Math.min(1.0, l * scale));
-    if (r !== undefined) right[i] = Math.max(-1.0, Math.min(1.0, r * scale));
-  }
+  normalizeStereoBuffers(left, right, maxPeak);
 
   return {
     left,

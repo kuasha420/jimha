@@ -211,6 +211,80 @@
       .fill({ color, alpha });
   }
 
+  function updateAttractMode(dt: number, width: number, height: number): void {
+    const timeSinceInteraction = performance.now() - lastInteractionTime;
+    if (timeSinceInteraction > 20000) {
+      attractModeActive = true;
+      ambientSpawnTimer += dt;
+      if (ambientSpawnTimer > 3.5 && bubbles.length < 18) {
+        ambientSpawnTimer = 0;
+        const randomX = (0.1 + Math.random() * 0.8) * width;
+        const ambientBubble = spawnBubble(randomX, height + 30);
+        bubbles.push(ambientBubble);
+      }
+    } else {
+      attractModeActive = false;
+      ambientSpawnTimer = 0;
+    }
+  }
+
+  function renderBackgroundStars(
+    graphics: Graphics,
+    dt: number,
+    width: number,
+    height: number
+  ): void {
+    graphics.clear();
+    const nowSec = performance.now() / 1000.0;
+    for (const star of bgStars) {
+      if (attractModeActive) {
+        star.relX = (star.relX + dt * 0.005) % 1.0;
+      }
+      const twinkle = 0.5 + 0.5 * Math.sin(nowSec * 2.5 + star.phase);
+      graphics
+        .circle(star.relX * width, star.relY * height, star.size)
+        .fill({ color: 0xffffff, alpha: 0.25 + 0.55 * twinkle });
+    }
+  }
+
+  function renderBubblesLayer(graphics: Graphics, dt: number): void {
+    bubbles = updateBubbles(bubbles, dt);
+    graphics.clear();
+    for (const b of bubbles) {
+      graphics
+        .circle(b.x, b.y, b.radius)
+        .fill({ color: b.color, alpha: 0.35 * b.life })
+        .stroke({ color: 0xffffff, alpha: 0.65 * b.life, width: 2.5 });
+
+      graphics
+        .circle(b.x - b.radius * 0.35, b.y - b.radius * 0.35, b.radius * 0.24)
+        .fill({ color: 0xffffff, alpha: 0.75 * b.life });
+    }
+  }
+
+  function drawSingleParticle(graphics: Graphics, p: Particle): void {
+    const pLife = Math.max(0, Math.min(1, p.life));
+    if (p.shape === 'circle') {
+      graphics.circle(p.x, p.y, p.size / 2).fill({ color: p.color, alpha: pLife });
+    } else if (p.shape === 'confetti') {
+      graphics
+        .rect(p.x - p.size / 2, p.y - p.size / 4, p.size, p.size / 2)
+        .fill({ color: p.color, alpha: pLife });
+    } else if (p.shape === 'star') {
+      drawStar(graphics, p.x, p.y, p.size / 2, p.color, pLife);
+    } else if (p.shape === 'heart') {
+      drawHeart(graphics, p.x, p.y, p.size, p.color, pLife);
+    }
+  }
+
+  function renderParticlesLayer(graphics: Graphics, dt: number, height: number): void {
+    particles = updateParticles(particles, dt, height);
+    graphics.clear();
+    for (const p of particles) {
+      drawSingleParticle(graphics, p);
+    }
+  }
+
   onMount(async () => {
     if (!containerEl) return;
 
@@ -287,75 +361,21 @@
       backgroundHue = (backgroundHue + dt * 3.0) % 360.0;
 
       // Attract mode: after 20s of inactivity, gently drift stars and float slow buoyant bubbles
-      const timeSinceInteraction = performance.now() - lastInteractionTime;
-      if (timeSinceInteraction > 20000) {
-        attractModeActive = true;
-        ambientSpawnTimer += dt;
-        if (ambientSpawnTimer > 3.5 && bubbles.length < 18) {
-          ambientSpawnTimer = 0;
-          const randomX = (0.1 + Math.random() * 0.8) * width;
-          const ambientBubble = spawnBubble(randomX, height + 30);
-          bubbles.push(ambientBubble);
-        }
-      } else {
-        attractModeActive = false;
-        ambientSpawnTimer = 0;
-      }
+      updateAttractMode(dt, width, height);
 
       // 1. Render dynamic background with twilight glow & twinkling stars
       if (bgGraphics) {
-        bgGraphics.clear();
-
-        // Subtle gradient simulation via background box and radial glow
-        const nowSec = performance.now() / 1000.0;
-        for (const star of bgStars) {
-          if (attractModeActive) {
-            star.relX = (star.relX + dt * 0.005) % 1.0;
-          }
-          const twinkle = 0.5 + 0.5 * Math.sin(nowSec * 2.5 + star.phase);
-          bgGraphics
-            .circle(star.relX * width, star.relY * height, star.size)
-            .fill({ color: 0xffffff, alpha: 0.25 + 0.55 * twinkle });
-        }
+        renderBackgroundStars(bgGraphics, dt, width, height);
       }
 
       // 2. Render floating liquid bubbles with specular highlights
-      bubbles = updateBubbles(bubbles, dt);
       if (bubbleGraphics) {
-        bubbleGraphics.clear();
-        for (const b of bubbles) {
-          // Main bubble body
-          bubbleGraphics
-            .circle(b.x, b.y, b.radius)
-            .fill({ color: b.color, alpha: 0.35 * b.life })
-            .stroke({ color: 0xffffff, alpha: 0.65 * b.life, width: 2.5 });
-
-          // Specular light reflection
-          bubbleGraphics
-            .circle(b.x - b.radius * 0.35, b.y - b.radius * 0.35, b.radius * 0.24)
-            .fill({ color: 0xffffff, alpha: 0.75 * b.life });
-        }
+        renderBubblesLayer(bubbleGraphics, dt);
       }
 
       // 3. Render multi-shaped particle fireworks
-      particles = updateParticles(particles, dt, height);
       if (particleGraphics) {
-        particleGraphics.clear();
-        for (const p of particles) {
-          const pLife = Math.max(0, Math.min(1, p.life));
-
-          if (p.shape === 'circle') {
-            particleGraphics.circle(p.x, p.y, p.size / 2).fill({ color: p.color, alpha: pLife });
-          } else if (p.shape === 'confetti') {
-            particleGraphics
-              .rect(p.x - p.size / 2, p.y - p.size / 4, p.size, p.size / 2)
-              .fill({ color: p.color, alpha: pLife });
-          } else if (p.shape === 'star') {
-            drawStar(particleGraphics, p.x, p.y, p.size / 2, p.color, pLife);
-          } else if (p.shape === 'heart') {
-            drawHeart(particleGraphics, p.x, p.y, p.size, p.color, pLife);
-          }
-        }
+        renderParticlesLayer(particleGraphics, dt, height);
       }
 
       // 4. Update center-stage scale and radial glowing halo

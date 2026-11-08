@@ -17,6 +17,7 @@ const PENTATONIC_FREQUENCIES: [f32; 11] = [
     1046.50, // C6
 ];
 
+#[derive(Debug)]
 pub struct NativeAudioEngine {
     cache_dir: PathBuf,
     proc_pool: Mutex<Vec<Child>>,
@@ -154,12 +155,15 @@ impl NativeAudioEngine {
             None => return,
         };
 
-        let mut idx_lock = self.note_index.lock().unwrap();
-        let idx = if !key_text.is_empty() {
+        let mut idx_lock = self
+            .note_index
+            .lock()
+            .expect("fatal invariant: note_index mutex poisoned");
+        let idx = if key_text.is_empty() {
+            *idx_lock % PENTATONIC_FREQUENCIES.len()
+        } else {
             let first_char = key_text.chars().next().unwrap_or('A') as usize;
             (first_char + *idx_lock) % PENTATONIC_FREQUENCIES.len()
-        } else {
-            *idx_lock % PENTATONIC_FREQUENCIES.len()
         };
         *idx_lock = (*idx_lock + 1) % PENTATONIC_FREQUENCIES.len();
         drop(idx_lock);
@@ -172,9 +176,13 @@ impl NativeAudioEngine {
             Self::write_chime_wav(&wav_path, freq);
         }
 
+        let Some(wav_str) = wav_path.to_str() else {
+            return;
+        };
+
         // Clean dead processes in pool and enforce voice stealing (max 4 concurrent voices)
         if let Ok(mut pool) = self.proc_pool.lock() {
-            pool.retain_mut(|p| p.try_wait().map(|s| s.is_none()).unwrap_or(false));
+            pool.retain_mut(|p| p.try_wait().is_ok_and(|s| s.is_none()));
             while pool.len() >= 4 {
                 if let Some(mut oldest) = pool.drain(..1).next() {
                     let _ = oldest.kill();
@@ -184,13 +192,9 @@ impl NativeAudioEngine {
             let is_pw = player.to_string_lossy().contains("pw-play");
             let mut cmd = Command::new(player);
             if is_pw {
-                cmd.args([
-                    "--media-role=Game",
-                    "--volume=0.8",
-                    wav_path.to_str().unwrap(),
-                ]);
+                cmd.args(["--media-role=Game", "--volume=0.8", wav_str]);
             } else {
-                cmd.args(["--media-role=Game", wav_path.to_str().unwrap()]);
+                cmd.args(["--media-role=Game", wav_str]);
             }
             if let Ok(child) = cmd
                 .stdout(std::process::Stdio::null())

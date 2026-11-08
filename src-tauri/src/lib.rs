@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+
 pub mod audio;
 pub mod kiosk;
 pub mod profile;
@@ -9,7 +11,7 @@ use std::sync::Mutex;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! Welcome to Jimha!", name)
+    format!("Hello, {name}! Welcome to Jimha!")
 }
 
 #[tauri::command]
@@ -40,7 +42,7 @@ async fn kiosk_handover(target_id: Option<String>) -> Result<bool, String> {
 fn kiosk_minimize(window: tauri::Window) -> Result<(), String> {
     window
         .minimize()
-        .map_err(|e| format!("Failed to minimize window: {}", e))
+        .map_err(|e| format!("Failed to minimize window: {e}"))
 }
 
 #[tauri::command]

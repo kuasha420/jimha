@@ -59,8 +59,85 @@ export function getRandomColor(palette: readonly string[] = PALETTE): string {
   return palette[idx] ?? '#FF4081';
 }
 
+const SPECIAL_KEYS: Record<string, KeyDisplayResult> = {
+  ESCAPE: {
+    title: 'ESCAPE',
+    subtitle: '🚀 BLAST OFF TO SPACE! 🚀',
+    emoji: '🚀',
+    color: '#7C4DFF',
+  },
+  ESC: {
+    title: 'ESCAPE',
+    subtitle: '🚀 BLAST OFF TO SPACE! 🚀',
+    emoji: '🚀',
+    color: '#7C4DFF',
+  },
+  ' ': {
+    title: 'SPACE',
+    subtitle: '🌟 COSMIC SUPERNOVA! 🌟',
+    emoji: '✨',
+  },
+  SPACE: {
+    title: 'SPACE',
+    subtitle: '🌟 COSMIC SUPERNOVA! 🌟',
+    emoji: '✨',
+  },
+  ENTER: {
+    title: 'ENTER',
+    subtitle: '🎉 PARTY TIME CELEBRATION! 🎉',
+    emoji: '🎈',
+  },
+  BACKSPACE: {
+    title: 'POP!',
+    subtitle: '🫧 BUBBLE POP! 🫧',
+    emoji: '🫧',
+  },
+  ARROWUP: {
+    title: 'UP ⬆️',
+    subtitle: '🚀 ROCKETING TO THE STARS!',
+    emoji: '🌌',
+  },
+  UP: {
+    title: 'UP ⬆️',
+    subtitle: '🚀 ROCKETING TO THE STARS!',
+    emoji: '🌌',
+  },
+  ARROWDOWN: {
+    title: 'DOWN ⬇️',
+    subtitle: '🌊 DIVING DEEP INTO THE OCEAN!',
+    emoji: '🐬',
+  },
+  DOWN: {
+    title: 'DOWN ⬇️',
+    subtitle: '🌊 DIVING DEEP INTO THE OCEAN!',
+    emoji: '🐬',
+  },
+  ARROWLEFT: {
+    title: 'LEFT ⬅️',
+    subtitle: '🌪️ SWISHING TO THE LEFT!',
+    emoji: '💫',
+  },
+  LEFT: {
+    title: 'LEFT ⬅️',
+    subtitle: '🌪️ SWISHING TO THE LEFT!',
+    emoji: '💫',
+  },
+  ARROWRIGHT: {
+    title: 'RIGHT ➡️',
+    subtitle: '⚡ DASHING TO THE RIGHT!',
+    emoji: '⚡',
+  },
+  RIGHT: {
+    title: 'RIGHT ➡️',
+    subtitle: '⚡ DASHING TO THE RIGHT!',
+    emoji: '⚡',
+  },
+};
+
 export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
-  if (rawKey === ' ' || rawKey === 'Spacebar' || rawKey.toLowerCase() === 'space') {
+  const text = rawKey.trim().toUpperCase();
+
+  if (rawKey === ' ' || text === 'SPACEBAR' || text === 'SPACE') {
     return {
       title: 'SPACE',
       subtitle: '🌟 COSMIC SUPERNOVA! 🌟',
@@ -69,10 +146,9 @@ export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
     };
   }
 
-  const text = rawKey.trim().toUpperCase();
-
-  if (text && ALPHABET_COMPANIONS[text]) {
-    const [emoji, word] = ALPHABET_COMPANIONS[text];
+  const companion = ALPHABET_COMPANIONS[text];
+  if (companion) {
+    const [emoji, word] = companion;
     return {
       title: text,
       subtitle: `${text} is for ${word} ${emoji}`,
@@ -80,9 +156,8 @@ export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
     };
   }
 
-  if (text && /^\d+$/.test(text)) {
-    const val = parseInt(text, 10);
-    const numContent = getNumberContent(val);
+  if (/^\d+$/.test(text)) {
+    const numContent = getNumberContent(parseInt(text, 10));
     if (numContent) {
       return {
         title: numContent.title,
@@ -93,67 +168,14 @@ export function resolveKeyDisplay(rawKey: string): KeyDisplayResult {
     }
   }
 
-  switch (text) {
-    case 'ESCAPE':
-    case 'ESC':
-      return {
-        title: 'ESCAPE',
-        subtitle: '🚀 BLAST OFF TO SPACE! 🚀',
-        emoji: '🚀',
-        color: '#7C4DFF',
-      };
-    case ' ':
-    case 'SPACE':
-      return {
-        title: 'SPACE',
-        subtitle: '🌟 COSMIC SUPERNOVA! 🌟',
-        emoji: '✨',
-      };
-    case 'ENTER':
-      return {
-        title: 'ENTER',
-        subtitle: '🎉 PARTY TIME CELEBRATION! 🎉',
-        emoji: '🎈',
-      };
-    case 'BACKSPACE':
-      return {
-        title: 'POP!',
-        subtitle: '🫧 BUBBLE POP! 🫧',
-        emoji: '🫧',
-      };
-    case 'ARROWUP':
-    case 'UP':
-      return {
-        title: 'UP ⬆️',
-        subtitle: '🚀 ROCKETING TO THE STARS!',
-        emoji: '🌌',
-      };
-    case 'ARROWDOWN':
-    case 'DOWN':
-      return {
-        title: 'DOWN ⬇️',
-        subtitle: '🌊 DIVING DEEP INTO THE OCEAN!',
-        emoji: '🐬',
-      };
-    case 'ARROWLEFT':
-    case 'LEFT':
-      return {
-        title: 'LEFT ⬅️',
-        subtitle: '🌪️ SWISHING TO THE LEFT!',
-        emoji: '💫',
-      };
-    case 'ARROWRIGHT':
-    case 'RIGHT':
-      return {
-        title: 'RIGHT ➡️',
-        subtitle: '⚡ DASHING TO THE RIGHT!',
-        emoji: '⚡',
-      };
-    default:
-      return {
-        title: text || 'KEY',
-        subtitle: '💖 YOU ARE AWESOME JIMHA! 💖',
-        emoji: '🌟',
-      };
+  const special = SPECIAL_KEYS[text];
+  if (special) {
+    return special;
   }
+
+  return {
+    title: text || 'KEY',
+    subtitle: '💖 YOU ARE AWESOME JIMHA! 💖',
+    emoji: '🌟',
+  };
 }

@@ -74,7 +74,7 @@ export const ALL_INSTRUMENTS: InstrumentConfig[] = [
   INSTRUMENT_MUSIC_BOX,
 ];
 
-export function getInstrumentConfig(id: InstrumentId | string): InstrumentConfig {
+export function getInstrumentConfig(id: string): InstrumentConfig {
   if (id in INSTRUMENTS) {
     return INSTRUMENTS[id as InstrumentId];
   }

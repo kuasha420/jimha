@@ -55,64 +55,23 @@
     }
   }
 
+  const FALLBACK_EMOJI_RULES: Array<{ keywords: string[]; emoji: string }> = [
+    { keywords: ['terminal', 'konsole', 'kitty', 'alacritty', 'zsh'], emoji: '📟' },
+    { keywords: ['firefox', 'chrome', 'browser', 'edge', 'brave'], emoji: '🌐' },
+    { keywords: ['discord', 'vesktop', 'slack', 'telegram'], emoji: '💬' },
+    { keywords: ['code', 'antigravity', 'cursor', 'editor'], emoji: '✨' },
+    { keywords: ['steam', 'game', 'lutris', 'heroic'], emoji: '🎮' },
+    { keywords: ['music', 'spotify', 'audio', 'vlc', 'media'], emoji: '🎵' },
+    { keywords: ['dolphin', 'file', 'nautilus', 'folder'], emoji: '📁' },
+    { keywords: ['setting', 'config', 'control'], emoji: '⚙️' },
+  ];
+
   function getFallbackEmoji(title: string, icon: string): string {
     const t = (title + ' ' + icon).toLowerCase();
-    if (
-      t.includes('terminal') ||
-      t.includes('konsole') ||
-      t.includes('kitty') ||
-      t.includes('alacritty') ||
-      t.includes('zsh')
-    ) {
-      return '📟';
-    }
-    if (
-      t.includes('firefox') ||
-      t.includes('chrome') ||
-      t.includes('browser') ||
-      t.includes('edge') ||
-      t.includes('brave')
-    ) {
-      return '🌐';
-    }
-    if (
-      t.includes('discord') ||
-      t.includes('vesktop') ||
-      t.includes('slack') ||
-      t.includes('telegram')
-    ) {
-      return '💬';
-    }
-    if (
-      t.includes('code') ||
-      t.includes('antigravity') ||
-      t.includes('cursor') ||
-      t.includes('editor')
-    ) {
-      return '✨';
-    }
-    if (t.includes('steam') || t.includes('game') || t.includes('lutris') || t.includes('heroic')) {
-      return '🎮';
-    }
-    if (
-      t.includes('music') ||
-      t.includes('spotify') ||
-      t.includes('audio') ||
-      t.includes('vlc') ||
-      t.includes('media')
-    ) {
-      return '🎵';
-    }
-    if (
-      t.includes('dolphin') ||
-      t.includes('file') ||
-      t.includes('nautilus') ||
-      t.includes('folder')
-    ) {
-      return '📁';
-    }
-    if (t.includes('setting') || t.includes('config') || t.includes('control')) {
-      return '⚙️';
+    for (const rule of FALLBACK_EMOJI_RULES) {
+      if (rule.keywords.some((k) => t.includes(k))) {
+        return rule.emoji;
+      }
     }
     return '🖥️';
   }

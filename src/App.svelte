@@ -131,7 +131,7 @@
     }
   }
 
-  async function triggerKonamiHandover() {
+  function triggerKonamiHandover() {
     void recordProgressionEvent('konami', 'KONAMI');
     if (pixiCanvas) {
       pixiCanvas.triggerKey('👑 30 LIVES GRANTED! 🚀💖✨', { color: '#FF4081' });
@@ -182,46 +182,48 @@
 
   const pressedKeys = new Set<string>();
 
-  function handleKeyDown(event: KeyboardEvent) {
-    pressedKeys.add(event.key);
+  const SWALLOWED_KEY_CODES = new Set([
+    'Space',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Tab',
+    'Backspace',
+    'Escape',
+    'F5',
+    'F11',
+  ]);
 
-    if (isStickerBookOpen) {
+  const BROWSER_SHORTCUT_KEYS = new Set(['w', 'W', 'q', 'Q', 'r', 'R']);
+
+  const ARROW_KEY_MAP: Record<string, string> = {
+    ArrowUp: 'UP',
+    ArrowDown: 'DOWN',
+    ArrowLeft: 'LEFT',
+    ArrowRight: 'RIGHT',
+  };
+
+  function normalizeKeyToken(key: string): string {
+    return ARROW_KEY_MAP[key] ?? key.toUpperCase();
+  }
+
+  function preventToddlerDefaults(event: KeyboardEvent): void {
+    if (
+      SWALLOWED_KEY_CODES.has(event.code) ||
+      (event.altKey && (event.key === 'F4' || event.key === 'Tab')) ||
+      (event.ctrlKey && BROWSER_SHORTCUT_KEYS.has(event.key))
+    ) {
       event.preventDefault();
-      isStickerBookOpen = false;
-      return;
     }
+  }
 
-    if (event.key === 'F2' || (event.altKey && (event.key === 'b' || event.key === 'B'))) {
-      event.preventDefault();
-      isStickerBookOpen = true;
-      return;
-    }
-
+  function handleAdultAltTabGate(event: KeyboardEvent): boolean {
     const isAlt = event.key === 'Alt';
     const isTab = event.key === 'Tab';
 
     if (isAlt) altPressed = true;
     if (isTab) tabPressed = true;
-
-    // Prevent default actions for toddler-swallowed keys
-    if (
-      [
-        'Space',
-        'ArrowUp',
-        'ArrowDown',
-        'ArrowLeft',
-        'ArrowRight',
-        'Tab',
-        'Backspace',
-        'Escape',
-        'F5',
-        'F11',
-      ].includes(event.code) ||
-      (event.altKey && (event.key === 'F4' || event.key === 'Tab')) ||
-      (event.ctrlKey && ['w', 'W', 'q', 'Q', 'r', 'R'].includes(event.key))
-    ) {
-      event.preventDefault();
-    }
 
     const isAltTab = (isTab && (event.altKey || altPressed)) || (isAlt && tabPressed);
 
@@ -241,7 +243,7 @@
           audioManager.playKey('ALT_TAB');
         }
       }
-      return;
+      return true;
     }
 
     // Any non-Alt/Tab key interrupts Alt+Tab hold
@@ -252,53 +254,69 @@
       tabPressed = false;
     }
 
-    // 2. Active Virtual Switcher key handling
-    if (virtualSwitcherActive) {
-      switcherLastActionTime = performance.now();
+    return false;
+  }
 
-      if (event.key === 'Escape') {
+  function handleSwitcherNavigation(key: string): boolean {
+    if (key === 'ArrowRight' || key === 'ArrowDown') {
+      switcherRef?.cycleNext();
+      rekka.add(key === 'ArrowRight' ? 'RIGHT' : 'DOWN');
+      if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
         virtualSwitcherActive = false;
-        rekka.clear();
-        return;
+        void triggerQuickSwitchHandover();
       }
-
-      if (event.key === 'Enter') {
-        virtualSwitcherActive = false;
-        switcherRef?.commitSelection();
-        return;
-      }
-
-      if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
-        switcherRef?.cycleNext();
-        rekka.add(event.key === 'ArrowRight' ? 'RIGHT' : 'DOWN');
-        if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-          virtualSwitcherActive = false;
-          void triggerQuickSwitchHandover();
-        }
-        return;
-      }
-
-      if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
-        switcherRef?.cyclePrev();
-        rekka.add(event.key === 'ArrowLeft' ? 'LEFT' : 'UP');
-        return;
-      }
-
-      const upper = event.key.toUpperCase();
-      if (upper === 'B' || upper === 'A') {
-        rekka.add(upper);
-        if (rekka.matches(KONAMI_SEQUENCE)) {
-          virtualSwitcherActive = false;
-          void triggerKonamiHandover();
-        }
-        return;
-      }
-
-      // Any other key closes virtual switcher
-      virtualSwitcherActive = false;
-      rekka.clear();
+      return true;
     }
 
+    if (key === 'ArrowLeft' || key === 'ArrowUp') {
+      switcherRef?.cyclePrev();
+      rekka.add(key === 'ArrowLeft' ? 'LEFT' : 'UP');
+      return true;
+    }
+
+    return false;
+  }
+
+  function handleVirtualSwitcherKey(event: KeyboardEvent): boolean {
+    if (!virtualSwitcherActive) {
+      return false;
+    }
+
+    switcherLastActionTime = performance.now();
+
+    if (event.key === 'Escape') {
+      virtualSwitcherActive = false;
+      rekka.clear();
+      return true;
+    }
+
+    if (event.key === 'Enter') {
+      virtualSwitcherActive = false;
+      switcherRef?.commitSelection();
+      return true;
+    }
+
+    if (handleSwitcherNavigation(event.key)) {
+      return true;
+    }
+
+    const upper = event.key.toUpperCase();
+    if (upper === 'B' || upper === 'A') {
+      rekka.add(upper);
+      if (rekka.matches(KONAMI_SEQUENCE)) {
+        virtualSwitcherActive = false;
+        void triggerKonamiHandover();
+      }
+      return true;
+    }
+
+    // Any other key closes virtual switcher
+    virtualSwitcherActive = false;
+    rekka.clear();
+    return false;
+  }
+
+  function handleCompoundExitGate(event: KeyboardEvent): boolean {
     // 3. Shift+Escape Compound Adult Exit Gate (2.5s continuous hold)
     const isShiftEsc = event.key === 'Escape' && (event.shiftKey || pressedKeys.has('Shift'));
     const isElbowMashing = pressedKeys.size > 2;
@@ -315,7 +333,7 @@
         escHoldProgress = 0;
         escRemainingSec = 2.5;
       }
-      return;
+      return true;
     } else {
       isEscPressed = false;
       escHoldProgress = 0;
@@ -324,28 +342,94 @@
     // Lone Escape pressed: show discrete parent exit hint while retaining rocket companion card
     if (event.key === 'Escape' && !isShiftEsc) {
       showEscapeParentHint = true;
-      if (escapeHintTimer) clearTimeout(escapeHintTimer);
+      if (escapeHintTimer) {
+        clearTimeout(escapeHintTimer);
+      }
       escapeHintTimer = setTimeout(() => {
         showEscapeParentHint = false;
       }, 4000);
     }
 
-    // 4. Rekka Arcade Combo Buffer Processing
-    let token = event.key.toUpperCase();
-    if (event.key === 'ArrowUp') token = 'UP';
-    else if (event.key === 'ArrowDown') token = 'DOWN';
-    else if (event.key === 'ArrowLeft') token = 'LEFT';
-    else if (event.key === 'ArrowRight') token = 'RIGHT';
+    return false;
+  }
 
-    rekka.add(token);
-
+  function checkArcadeCombos(): boolean {
     if (rekka.matches(KONAMI_SEQUENCE)) {
       void triggerKonamiHandover();
+      return true;
+    }
+    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+      void openVirtualSwitcher();
+      return true;
+    }
+    return false;
+  }
+
+  function handleGamepadVirtualSwitcher(event: GamepadButtonEvent): boolean {
+    if (!virtualSwitcherActive) {
+      return false;
+    }
+
+    switcherLastActionTime = performance.now();
+    if (event.buttonId === 'B') {
+      virtualSwitcherActive = false;
+      rekka.clear();
+      return true;
+    }
+    if (event.buttonId === 'A' || event.buttonId === 'START') {
+      virtualSwitcherActive = false;
+      switcherRef?.commitSelection();
+      return true;
+    }
+    if (['RIGHT', 'DOWN', 'RB', 'RT'].includes(event.buttonId)) {
+      switcherRef?.cycleNext();
+      if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
+        virtualSwitcherActive = false;
+        void triggerQuickSwitchHandover();
+      }
+      return true;
+    }
+    if (['LEFT', 'UP', 'LB', 'LT'].includes(event.buttonId)) {
+      switcherRef?.cyclePrev();
+      return true;
+    }
+    return true;
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    pressedKeys.add(event.key);
+
+    if (isStickerBookOpen) {
+      event.preventDefault();
+      isStickerBookOpen = false;
       return;
     }
 
-    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-      void openVirtualSwitcher();
+    if (event.key === 'F2' || (event.altKey && (event.key === 'b' || event.key === 'B'))) {
+      event.preventDefault();
+      isStickerBookOpen = true;
+      return;
+    }
+
+    preventToddlerDefaults(event);
+
+    if (handleAdultAltTabGate(event)) {
+      return;
+    }
+
+    if (handleVirtualSwitcherKey(event)) {
+      return;
+    }
+
+    if (handleCompoundExitGate(event)) {
+      return;
+    }
+
+    // 4. Rekka Arcade Combo Buffer Processing
+    const token = normalizeKeyToken(event.key);
+    rekka.add(token);
+
+    if (checkArcadeCombos()) {
       return;
     }
 
@@ -391,41 +475,12 @@
       return;
     }
 
-    if (virtualSwitcherActive) {
-      switcherLastActionTime = performance.now();
-      if (event.buttonId === 'B') {
-        virtualSwitcherActive = false;
-        rekka.clear();
-        return;
-      }
-      if (event.buttonId === 'A' || event.buttonId === 'START') {
-        virtualSwitcherActive = false;
-        switcherRef?.commitSelection();
-        return;
-      }
-      if (['RIGHT', 'DOWN', 'RB', 'RT'].includes(event.buttonId)) {
-        switcherRef?.cycleNext();
-        if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-          virtualSwitcherActive = false;
-          void triggerQuickSwitchHandover();
-        }
-        return;
-      }
-      if (['LEFT', 'UP', 'LB', 'LT'].includes(event.buttonId)) {
-        switcherRef?.cyclePrev();
-        return;
-      }
+    if (handleGamepadVirtualSwitcher(event)) {
       return;
     }
 
     // Check combos from gamepad RekkaBuffer feeds
-    if (rekka.matches(KONAMI_SEQUENCE)) {
-      void triggerKonamiHandover();
-      return;
-    }
-
-    if (rekka.matches(QUICK_SWITCH_SEQUENCE)) {
-      void openVirtualSwitcher();
+    if (checkArcadeCombos()) {
       return;
     }
 
@@ -486,6 +541,18 @@
     animFrameId = requestAnimationFrame(tick);
   }
 
+  function handleContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+  }
+
+  function handleBlur(): void {
+    pressedKeys.clear();
+    isEscPressed = false;
+    escHoldProgress = 0;
+    isAltTabPressed = false;
+    altTabHoldProgress = 0;
+  }
+
   onMount(() => {
     audioManager = new JimhaAudioManager();
     audioManager
@@ -494,7 +561,9 @@
         audioManager?.playStartupChime();
         audioManager?.setAudioMode('idle');
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[App] Audio unlock error on mount:', err);
+      });
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -519,18 +588,7 @@
 
     animFrameId = requestAnimationFrame(tick);
 
-    const handleBlur = () => {
-      pressedKeys.clear();
-      isEscPressed = false;
-      escHoldProgress = 0;
-      isAltTabPressed = false;
-      altTabHoldProgress = 0;
-    };
     window.addEventListener('blur', handleBlur);
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
     window.addEventListener('contextmenu', handleContextMenu, { capture: true });
 
     // Initial warm-up on first user interaction
@@ -541,7 +599,9 @@
           audioManager?.playStartupChime();
           audioManager?.setAudioMode('idle');
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.warn('[App] Audio unlock error on user interaction:', err);
+        });
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
@@ -556,7 +616,8 @@
     }
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
-    window.removeEventListener('contextmenu', (e: MouseEvent) => e.preventDefault(), {
+    window.removeEventListener('blur', handleBlur);
+    window.removeEventListener('contextmenu', handleContextMenu, {
       capture: true,
     });
     if (gamepadManager) {

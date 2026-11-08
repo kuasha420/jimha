@@ -49,13 +49,15 @@ pub fn extract_uuid(input: &str) -> Option<String> {
                 }
             });
         if is_uuid {
-            return std::str::from_utf8(slice).ok().map(|s| s.to_string());
+            return std::str::from_utf8(slice)
+                .ok()
+                .map(std::string::ToString::to_string);
         }
     }
     None
 }
 
-/// Synthesize transient KWin ECMAScript for authoritative window handover.
+/// Synthesize transient `KWin` ECMAScript for authoritative window handover.
 /// Note: Window matching strictly targets Jimha's own window class and exact caption,
 /// preventing accidental minimization of editors, browsers, or other tasks with "jimha" in title.
 pub fn synthesize_kwin_handover_script(target_match_id: Option<&str>) -> (String, String) {
@@ -81,7 +83,7 @@ for (var i = 0; i < wins.length; i++) {{
         w.minimized = true;
     }}
 }}
-var target = {};
+var target = {target_json};
 if (target === "desktop") {{
     workspace.slotToggleShowDesktop();
 }} else if (target) {{
@@ -106,8 +108,7 @@ if (target === "desktop") {{
         }}
     }}
 }}
-"#,
-        target_json
+"#
     );
 
     (clean_target, script)
@@ -134,11 +135,11 @@ fn extract_quoted_string(input: &str) -> Option<(String, String)> {
     let end = end_quote?;
     let raw = &input[content_start..end];
     let remainder = &input[end + 1..];
-    let unescaped = raw.replace(r#"\""#, "\"").replace(r#"\\"#, "\\");
+    let unescaped = raw.replace(r#"\""#, "\"").replace(r"\\", "\\");
     Some((unescaped, remainder.to_string()))
 }
 
-/// Robust parsing of QDBus WindowsRunner Match output:
+/// Robust parsing of `QDBus` `WindowsRunner` Match output:
 /// [Argument: (sssida{sv}) "id", "title", "icon", ...]
 pub fn parse_qdbus_matches(text: &str) -> Vec<(String, String, String)> {
     let mut results = Vec::new();
@@ -166,8 +167,8 @@ pub fn encode_base64(bytes: &[u8]) -> String {
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = chunk.get(1).map(|&b| b as usize).unwrap_or(0);
-        let b2 = chunk.get(2).map(|&b| b as usize).unwrap_or(0);
+        let b1 = chunk.get(1).map_or(0, |&b| b as usize);
+        let b2 = chunk.get(2).map_or(0, |&b| b as usize);
         let triple = (b0 << 16) | (b1 << 8) | b2;
         out.push(CHARSET[(triple >> 18) & 0x3f] as char);
         out.push(CHARSET[(triple >> 12) & 0x3f] as char);
@@ -204,13 +205,13 @@ pub fn resolve_icon_data_url(icon_name: &str) -> Option<String> {
 
     for root in search_roots {
         let dir = PathBuf::from(root);
-        let png = dir.join(format!("{}.png", clean));
+        let png = dir.join(format!("{clean}.png"));
         if png.is_file() {
             if let Ok(bytes) = fs::read(&png) {
                 return Some(format!("data:image/png;base64,{}", encode_base64(&bytes)));
             }
         }
-        let svg = dir.join(format!("{}.svg", clean));
+        let svg = dir.join(format!("{clean}.svg"));
         if svg.is_file() {
             if let Ok(bytes) = fs::read(&svg) {
                 return Some(format!(
@@ -265,7 +266,7 @@ pub fn filter_window_matches(raw: Vec<(String, String, String)>) -> Vec<WindowEn
     windows
 }
 
-/// Check and configure KWin shortcut inhibition rule under KDE Plasma.
+/// Check and configure `KWin` shortcut inhibition rule under KDE Plasma.
 pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
     let kread_path = match find_binary("kreadconfig6") {
         Some(p) => p,
@@ -286,7 +287,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
             "rules",
         ])
         .output()
-        .map_err(|e| format!("Failed to execute kreadconfig6: {}", e))?;
+        .map_err(|e| format!("Failed to execute kreadconfig6: {e}"))?;
 
     let current_rules = if read_res.status.success() {
         String::from_utf8_lossy(&read_res.stdout).trim().to_string()
@@ -316,7 +317,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
                 &new_rules,
             ])
             .output()
-            .map_err(|e| format!("Failed to write kwinrulesrc rules list: {}", e))?;
+            .map_err(|e| format!("Failed to write kwinrulesrc rules list: {e}"))?;
         if !w1.status.success() {
             return Err(format!(
                 "kwriteconfig6 rules error: {}",
@@ -335,7 +336,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
                 &count_str,
             ])
             .output()
-            .map_err(|e| format!("Failed to write kwinrulesrc count: {}", e))?;
+            .map_err(|e| format!("Failed to write kwinrulesrc count: {e}"))?;
         if !w2.status.success() {
             return Err(format!(
                 "kwriteconfig6 count error: {}",
@@ -364,7 +365,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
                     v,
                 ])
                 .output()
-                .map_err(|e| format!("Failed to write rule property {}: {}", k, e))?;
+                .map_err(|e| format!("Failed to write rule property {k}: {e}"))?;
             if !wp.status.success() {
                 return Err(format!(
                     "kwriteconfig6 property {} error: {}",
@@ -379,7 +380,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
             let q_res = Command::new(qdbus_bin)
                 .args(["org.kde.KWin", "/KWin", "reconfigure"])
                 .output()
-                .map_err(|e| format!("Failed to reconfigure KWin via D-Bus: {}", e))?;
+                .map_err(|e| format!("Failed to reconfigure KWin via D-Bus: {e}"))?;
             if !q_res.status.success() {
                 return Err(format!(
                     "KWin reconfigure error: {}",
@@ -392,7 +393,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
     Ok(true)
 }
 
-/// Query active windows from KWin via D-Bus / qdbus.
+/// Query active windows from `KWin` via D-Bus / qdbus.
 pub async fn query_kwin_windows() -> Result<Vec<WindowEntry>, String> {
     let qdbus_cmd = match find_qdbus() {
         Some(p) => p,
@@ -408,7 +409,7 @@ pub async fn query_kwin_windows() -> Result<Vec<WindowEntry>, String> {
             "",
         ])
         .output()
-        .map_err(|e| format!("Failed to execute qdbus WindowsRunner: {}", e))?;
+        .map_err(|e| format!("Failed to execute qdbus WindowsRunner: {e}"))?;
 
     if !output.status.success() {
         return Ok(filter_window_matches(Vec::new()));
@@ -419,7 +420,7 @@ pub async fn query_kwin_windows() -> Result<Vec<WindowEntry>, String> {
     Ok(filter_window_matches(raw))
 }
 
-/// Execute transient KWin script to minimize Jimha and raise target.
+/// Execute transient `KWin` script to minimize Jimha and raise target.
 pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bool, String> {
     let qdbus_cmd = match find_qdbus() {
         Some(p) => p,
@@ -463,7 +464,7 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
         .output()
         .map_err(|e| {
             let _ = fs::remove_file(&temp_file);
-            format!("Failed to load KWin handover script via D-Bus: {}", e)
+            format!("Failed to load KWin handover script via D-Bus: {e}")
         })?;
 
     if !load_res.status.success() {
@@ -490,13 +491,13 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
     let run_res = Command::new(&qdbus_cmd)
         .args([
             "org.kde.KWin",
-            &format!("/Scripting/Script{}", num_str),
+            &format!("/Scripting/Script{num_str}"),
             "org.kde.kwin.Script.run",
         ])
         .output()
         .map_err(|e| {
             let _ = fs::remove_file(&temp_file);
-            format!("Failed to run KWin handover script: {}", e)
+            format!("Failed to run KWin handover script: {e}")
         })?;
 
     let run_success = run_res.status.success();
@@ -514,7 +515,7 @@ pub async fn execute_kwin_handover(target_match_id: Option<String>) -> Result<bo
     let _ = fs::remove_file(&temp_file);
 
     if !run_success {
-        return Err(format!("KWin Script.run failed: {}", run_stderr));
+        return Err(format!("KWin Script.run failed: {run_stderr}"));
     }
 
     Ok(true)
@@ -586,7 +587,7 @@ mod tests {
                 "Firefox".to_string(),
                 "firefox".to_string(),
             ),
-            ("uuid-3".to_string(), "".to_string(), "unknown".to_string()),
+            ("uuid-3".to_string(), String::new(), "unknown".to_string()),
             (
                 "uuid-2".to_string(),
                 "Firefox Duplicate".to_string(),
