@@ -215,10 +215,10 @@ pnpm verify
 # 2. RFC-051 Diff-aware affected testing (sub-second fast-path, <200ms)
 pnpm test:diff
 
-# 3. Full Vitest frontend test suite (13 test suites, 78 tests, <1.0s)
+# 3. Full Vitest frontend test suite (14 test suites, 84 tests, <1.0s)
 pnpm test
 
-# 4. Full Rust native backend test suite (20 tests, <0.03s)
+# 4. Full Rust native backend test suite (21 tests, <0.03s)
 pnpm test:rust
 # or: cargo test --manifest-path src-tauri/Cargo.toml
 

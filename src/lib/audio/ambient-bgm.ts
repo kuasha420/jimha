@@ -1,12 +1,10 @@
-import { PENTATONIC_FREQUENCIES } from './frequencies';
-import { invokeNativeAudioCommand } from './audio-manager';
+import { MelodySequencer, type MelodicTrack } from './melody-sequencer';
 
 export type BgmMode = 'idle' | 'playing' | 'ui';
 
 /**
- * AmbientBgmEngine: Zero-dependency Web Audio ambient generative music box engine.
- * Generates gentle, calming pentatonic chime drops and dynamically adapts/ducks
- * based on toddler activity and modal state.
+ * AmbientBgmEngine: Web Audio ambient music-box engine integrating MelodySequencer.
+ * Drives dynamic melodic themes with pedal bass and interactive ducking.
  */
 export class AmbientBgmEngine {
   private ctx: AudioContext | null = null;
@@ -14,10 +12,15 @@ export class AmbientBgmEngine {
   private filterNode: BiquadFilterNode | null = null;
   private mode: BgmMode = 'idle';
   private isRunning: boolean = false;
-  private dropTimer: ReturnType<typeof setTimeout> | null = null;
-  private idleRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+  private sequencer: MelodySequencer;
 
   constructor(ctx?: AudioContext | null) {
+    this.sequencer = new MelodySequencer({
+      playWebNote: (frequency: number, volume: number) => {
+        this.playWebNote(frequency, volume);
+      },
+    });
+
     if (ctx) {
       this.initNodes(ctx);
     }
@@ -57,23 +60,25 @@ export class AmbientBgmEngine {
   public start(): void {
     if (this.isRunning) return;
     this.isRunning = true;
-    this.scheduleNextDrop();
+    this.sequencer.start();
   }
 
   public stop(): void {
     this.isRunning = false;
-    if (this.dropTimer) {
-      clearTimeout(this.dropTimer);
-      this.dropTimer = null;
-    }
-    if (this.idleRestoreTimer) {
-      clearTimeout(this.idleRestoreTimer);
-      this.idleRestoreTimer = null;
-    }
+    this.sequencer.stop();
+  }
+
+  public setTrack(track: MelodicTrack): void {
+    this.sequencer.setTrack(track);
+  }
+
+  public getTrack(): MelodicTrack {
+    return this.sequencer.getTrack();
   }
 
   public setMode(mode: BgmMode): void {
     this.mode = mode;
+    this.sequencer.setMode(mode);
     this.applyModeParameters();
   }
 
@@ -82,101 +87,51 @@ export class AmbientBgmEngine {
   }
 
   public notifyInput(): void {
-    if (!this.isRunning) return;
-    if (this.mode === 'ui') return; // In UI modal mode, preserve lowpass profile
-
-    if (this.mode !== 'playing') {
+    if (this.mode === 'idle') {
       this.setMode('playing');
     }
-
-    if (this.idleRestoreTimer) {
-      clearTimeout(this.idleRestoreTimer);
-    }
-
-    this.idleRestoreTimer = setTimeout(() => {
-      if (this.isRunning && this.mode === 'playing') {
-        this.setMode('idle');
-      }
-    }, 5000);
+    this.sequencer.notifyInput();
   }
 
   private applyModeParameters(): void {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.filterNode) return;
     const now = this.ctx.currentTime;
-
-    let targetGain: number;
-    let targetCutoff: number;
-
-    if (this.mode === 'playing') {
-      targetGain = 0.05; // Duck to 0.05 during active key smashing
-      targetCutoff = 3200;
-    } else if (this.mode === 'ui') {
-      targetGain = 0.1; // Warm lowpass ambient tone
-      targetCutoff = 750;
-    } else {
-      targetGain = 0.15; // Idle ambient chime drops
-      targetCutoff = 3500;
-    }
+    const targetCutoff = this.mode === 'ui' ? 750 : 3500;
 
     try {
-      if (typeof this.masterGain.gain.setTargetAtTime === 'function') {
-        this.masterGain.gain.setTargetAtTime(targetGain, now, 0.25);
+      if (typeof this.filterNode.frequency.setTargetAtTime === 'function') {
+        this.filterNode.frequency.setTargetAtTime(targetCutoff, now, 0.25);
       } else {
-        this.masterGain.gain.setValueAtTime(targetGain, now);
-      }
-
-      if (this.filterNode) {
-        if (typeof this.filterNode.frequency.setTargetAtTime === 'function') {
-          this.filterNode.frequency.setTargetAtTime(targetCutoff, now, 0.25);
-        } else {
-          this.filterNode.frequency.setValueAtTime(targetCutoff, now);
-        }
+        this.filterNode.frequency.setValueAtTime(targetCutoff, now);
       }
     } catch (err) {
       console.warn('[AmbientBgmEngine] Failed to schedule audio parameter transition:', err);
     }
   }
 
-  private scheduleNextDrop(): void {
-    if (!this.isRunning) return;
-
-    const delay = 4000 + Math.random() * 2000; // 4.0 - 6.0s
-    this.dropTimer = setTimeout(() => {
-      if (!this.isRunning) return;
-      this.triggerAmbientDrop();
-      this.scheduleNextDrop();
-    }, delay);
-  }
-
-  private triggerAmbientDrop(): void {
-    invokeNativeAudioCommand('audio_play_bgm_drop');
-
+  private playWebNote(freq: number, volume: number): void {
     if (!this.ctx || !this.filterNode) return;
     if (this.ctx.state === 'suspended') return;
 
     try {
-      // Pick random pentatonic frequency from C4 to C6
-      const freq =
-        PENTATONIC_FREQUENCIES[Math.floor(Math.random() * PENTATONIC_FREQUENCIES.length)] ?? 523.25;
       const now = this.ctx.currentTime;
-
       const osc = this.ctx.createOscillator();
       const noteGain = this.ctx.createGain();
 
-      osc.type = Math.random() > 0.4 ? 'sine' : 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
       noteGain.gain.setValueAtTime(0.0001, now);
-      noteGain.gain.linearRampToValueAtTime(0.35, now + 0.04);
-      noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+      noteGain.gain.linearRampToValueAtTime(volume, now + 0.04);
+      noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
 
       osc.connect(noteGain);
       noteGain.connect(this.filterNode);
 
       osc.start(now);
-      osc.stop(now + 2.3);
+      osc.stop(now + 1.9);
     } catch (err) {
-      console.warn('[AmbientBgmEngine] Failed to trigger ambient drop:', err);
+      console.warn('[AmbientBgmEngine] Failed to trigger ambient note:', err);
     }
   }
 }

@@ -253,6 +253,16 @@ impl NativeAudioEngine {
         let idx = now % PENTATONIC_FREQUENCIES.len();
         self.play_chime_index(idx, Some(0.12));
     }
+
+    pub fn play_chord(&self, indices: &[usize], volume: Option<f32>) {
+        if indices.is_empty() {
+            return;
+        }
+        let voice_vol = volume.unwrap_or(0.8).clamp(0.0, 1.0) / (indices.len() as f32).sqrt();
+        for &idx in indices {
+            self.play_chime_index(idx, Some(voice_vol));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -304,5 +314,7 @@ mod tests {
         engine.play_bgm_drop();
         engine.play_startup();
         engine.play_fanfare();
+        engine.play_chord(&[0, 3, 5], Some(0.6));
+        engine.play_chord(&[], None);
     }
 }

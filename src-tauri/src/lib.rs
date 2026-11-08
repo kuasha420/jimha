@@ -44,8 +44,19 @@ fn audio_play_startup(state: tauri::State<'_, NativeAudioEngine>) -> Result<(), 
 fn audio_play_chime_index(
     state: tauri::State<'_, NativeAudioEngine>,
     index: usize,
+    volume: Option<f32>,
 ) -> Result<(), String> {
-    state.play_chime_index(index, None);
+    state.play_chime_index(index, volume);
+    Ok(())
+}
+
+#[tauri::command]
+fn audio_play_chord(
+    state: tauri::State<'_, NativeAudioEngine>,
+    indices: Vec<usize>,
+    volume: Option<f32>,
+) -> Result<(), String> {
+    state.play_chord(&indices, volume);
     Ok(())
 }
 
@@ -118,6 +129,7 @@ pub fn run() {
             audio_play_fanfare,
             audio_play_startup,
             audio_play_chime_index,
+            audio_play_chord,
             audio_play_bgm_drop,
             kiosk_inhibit_shortcuts,
             kiosk_query_windows,

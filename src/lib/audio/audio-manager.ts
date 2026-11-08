@@ -117,6 +117,20 @@ export class JimhaAudioManager {
     // Duck ambient background music when active key input occurs
     this.ambientBgm.notifyInput();
 
+    const upper = keyText.toUpperCase();
+    if (upper === 'SPACE' || keyText === ' ') {
+      this.playChord([0, 3, 5]);
+      return selection;
+    }
+    if (upper === 'ENTER') {
+      this.playChord([3, 5, 7]);
+      return selection;
+    }
+    if (upper === 'J') {
+      this.playChord([5, 7, 10]);
+      return selection;
+    }
+
     // 1. Native PipeWire stream via Tauri (0ms latency, bypasses browser sandbox)
     invokeNativeAudio(keyText);
 
@@ -211,6 +225,18 @@ export class JimhaAudioManager {
     const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
     const freq = highPentatonic[index % highPentatonic.length] ?? 523.25;
     this.playFrequency(freq);
+  }
+
+  public playChord(indices: number[], volume?: number): void {
+    if (!indices || indices.length === 0) return;
+    invokeNativeAudioCommand('audio_play_chord', { indices, volume });
+
+    for (const idx of indices) {
+      const freq = PENTATONIC_FREQUENCIES[idx % PENTATONIC_FREQUENCIES.length];
+      if (freq !== undefined) {
+        this.playFrequency(freq);
+      }
+    }
   }
 
   public async close(): Promise<void> {

@@ -233,8 +233,8 @@ In compliance with **PSL-INV-001** and **PSL-INV-002**, Jimha enforces a multi-t
 
 ### A. Sub-Second Test Suites
 
-- **Frontend Test Suite**: 13 frontend test suites comprising 78 vitest unit tests executing in **<1.0s** (803ms benchmark).
-- **Rust Backend Suite**: 20 hermetic cargo unit tests verifying RIFF header construction, UUID string parsing, base64 encoding, and KWin script synthesis executing in **<0.03s** (0.02s benchmark).
+- **Frontend Test Suite**: 14 frontend test suites comprising 84 vitest unit tests executing in **<1.0s** (850ms benchmark).
+- **Rust Backend Suite**: 21 hermetic cargo unit tests verifying RIFF header construction, UUID string parsing, base64 encoding, chord synthesis, and KWin script synthesis executing in **<0.03s** (0.02s benchmark).
 - **Turnkey Composite Gate**: `pnpm verify` executes all 7 verification tiers (svelte-check, eslint, clippy, cargo fmt, vitest, cargo test, vite build) in a single unified pipeline.
 - **Zero Synthetic Mocks**: Audio tests validate real generated binary WAV buffers, RIFF byte headers, and harmonic frequencies.
 
@@ -259,3 +259,43 @@ In compliance with **PSL-INV-001** and **PSL-INV-002**, Jimha enforces a multi-t
   - Automatically verifies `package.json` against semantic versioning requirements, ensuring major components (Tauri v2, Pixi.js v8, Svelte 5, TypeScript 6, Vite 8, Vitest 5, ESLint 10) remain evergreen without deprecated APIs or syntax.
 - **Anti-Drift Documentation Contract (`src/lib/docs-alignment.test.ts`)**:
   - Automatically validates documentation files (`README.md`, `docs/DAD_MODE_INVARIANTS.md`, `docs/LORE.md`, `docs/ARCHITECTURE.md`) against concrete runtime values (e.g. 25-bubble lagoon capacity, 7 stickers, 11 pentatonic frequencies, Self-Contained Product Invariant), ensuring documentation never drifts from code.
+
+---
+
+## 8. Multiplatform Audio Fleet Architecture
+
+To fulfill the **Self-Contained Product Invariant** across heterogeneous hardware targets (Linux workstations, Steam Deck handhelds, Android tablets, and offline laptops), Jimha establishes a clean architectural separation between music composition and hardware audio output.
+
+### A. Decoupled Melodic Sequencer (`src/lib/audio/melody-sequencer.ts`)
+
+Musical composition logic is completely decoupled from low-level operating system audio sinks:
+
+1. **Platform-Independent Representation**:
+   - `MelodicTrack` defines structured music box compositions using abstract pentatonic index steps (`0..10` representing pentatonic frequencies from $C_4$ to $C_6$).
+   - Dual-channel architecture provides independent voices for melody (`lead`) and pedal drone (`bass`) alongside structured rests (`null`).
+   - Integrated themes: _Starlight Lullaby_ (4/4 gentle music box), _Celestial Carousel_ (3/4 arpeggio waltz), and _Jimha's Wonder_ (4/4 playful walking melody).
+2. **Sink Abstraction (`SequencerAudioSink`)**:
+   - The sequencer dispatches notes through a pluggable interface rather than binding directly to platform APIs.
+   - On Linux desktop and SteamOS, notes dispatch over Tauri IPC to the Rust `NativeAudioEngine` (`audio_play_chime_index` / `audio_play_chord`).
+   - In web environments or when the native bridge is absent, the Web Audio fallback graph receives and synthesizes the exact same harmonic envelopes without code changes.
+3. **Dynamic Interactive Ducking**:
+   - The sequencer dynamically tracks toddler interaction timestamps (`notifyInput()`).
+   - Active play immediately ducks lead volume to $0.03$ and bass to $0.05$ to ensure toddler key taps remain acoustically distinct.
+   - When toddler play pauses, the sequencer smoothly restores ambient volume to $0.12$ (lead) and $0.08$ (bass) after a 3.5-second inactivity timeout.
+   - UI navigation modal mode (`ui`) attenuates output to gentle background levels ($0.02$ lead, $0.04$ bass).
+
+### B. Migration Blueprint: In-Process Audio (`cpal` / `rodio`)
+
+While the current Linux implementation utilizes `pw-play` shellouts with process pooling for rapid delivery:
+
+1. **In-Process Stream Synthesis**:
+   - The next evolution replaces external shellouts with an embedded, in-process audio rendering engine using `cpal` (Cross-Platform Audio Library) or `rodio`.
+   - Pre-synthesizes the 11 harmonic chime PCM waveforms directly into an in-memory ring buffer at application startup.
+2. **Polyphonic Native Voice Mixer**:
+   - Directly mixes up to 4 concurrent voices and harmonic chords (`audio_play_chord`) into the hardware output stream in memory.
+   - Eliminates OS process spawning overhead (`std::process::Command`), reducing audio dispatch latency to sub-millisecond levels.
+3. **Cross-Platform Target Parity**:
+   - **SteamOS / Linux**: Direct ALSA/PipeWire PCM output stream without relying on external system utilities.
+   - **Android**: AAudio / OpenSL ES backend via `cpal` for native low-latency tablet performance.
+   - **Web / WASM**: Clean Web Audio fallback via shared DSP algorithms.
+   - Guarantees Jimha remains **100% sovereign** and fully self-contained across every tier of the hardware fleet.
