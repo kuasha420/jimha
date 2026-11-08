@@ -1,4 +1,5 @@
 import { PENTATONIC_FREQUENCIES } from './frequencies';
+import { invokeNativeAudioCommand } from './audio-manager';
 
 export type BgmMode = 'idle' | 'playing' | 'ui';
 
@@ -148,6 +149,8 @@ export class AmbientBgmEngine {
   }
 
   private triggerAmbientDrop(): void {
+    invokeNativeAudioCommand('audio_play_bgm_drop');
+
     if (!this.ctx || !this.filterNode) return;
     if (this.ctx.state === 'suspended') return;
 

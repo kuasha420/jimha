@@ -48,10 +48,12 @@ describe('UI Component Invariants', () => {
     container.remove();
   });
 
-  it('renders StickerBook and calls audioManager.playStickerTapSound on sticker tap', () => {
+  it('renders StickerBook and replays fanfare on unlocked badge and tap sound on locked badge', () => {
     const playStickerTapSound = vi.fn();
+    const playCelebrationFanfare = vi.fn();
     const fakeAudioManager = {
       playStickerTapSound,
+      playCelebrationFanfare,
     } as unknown as JimhaAudioManager;
 
     const container = document.createElement('div');
@@ -67,10 +69,20 @@ describe('UI Component Invariants', () => {
       },
     });
 
-    const card = container.querySelector('.sticker-card') as HTMLElement;
-    expect(card).not.toBeNull();
-    card.click();
-    expect(playStickerTapSound).toHaveBeenCalledWith(0);
+    const cards = container.querySelectorAll('.sticker-card');
+    expect(cards.length).toBeGreaterThan(1);
+
+    // Tapping unlocked badge replays celebration fanfare
+    const unlockedCard = cards[0] as HTMLElement;
+    expect(unlockedCard.classList.contains('unlocked')).toBe(true);
+    unlockedCard.click();
+    expect(playCelebrationFanfare).toHaveBeenCalled();
+
+    // Tapping locked badge plays chime tap sound
+    const lockedCard = cards[1] as HTMLElement;
+    expect(lockedCard.classList.contains('locked')).toBe(true);
+    lockedCard.click();
+    expect(playStickerTapSound).toHaveBeenCalledWith(1);
 
     unmount(component);
     container.remove();

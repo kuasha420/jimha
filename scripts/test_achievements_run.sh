@@ -7,14 +7,22 @@ ARTIFACT_DIR="${PSL_ARTIFACT_DIR:-/home/kuasha/.gemini/antigravity/brain/63bf44f
 FRAMES_DIR="$ARTIFACT_DIR/achievements_frames"
 
 export YDOTOOL_SOCKET="/run/user/1000/.ydotool_socket"
+export XDG_DATA_HOME="$(mktemp -d)"
+
+cleanup() {
+    rm -rf "$XDG_DATA_HOME"
+    kill -9 "${JIMHA_PID:-}" 2>/dev/null || true
+    kill -9 "${VITE_PID:-}" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 echo "=================================================="
 echo "  JIMHA v2.0.0 ACHIEVEMENTS VERIFICATION AUDIT    "
 echo "=================================================="
 
-# 1. Reset child progression achievements
-echo "[1/8] Resetting child progression profile..."
-rm -f "$HOME/.local/share/jimha/profile.json"
+# 1. Setup sandboxed child progression achievements
+echo "[1/8] Setting up sandboxed child progression profile in $XDG_DATA_HOME..."
+mkdir -p "$XDG_DATA_HOME/jimha"
 mkdir -p "$FRAMES_DIR"
 rm -f "$FRAMES_DIR"/*.png
 
@@ -140,10 +148,10 @@ ffmpeg -y -framerate 1.2 -pattern_type glob -i "$FRAMES_DIR/*.png" \
   "$ARTIFACT_DIR/achievements_unlocked_audit.mp4"
 
 echo "[8/8] Inspecting unlocked profile state..."
-if [ -f "$HOME/.local/share/jimha/profile.json" ]; then
-    cat "$HOME/.local/share/jimha/profile.json"
+if [ -f "$XDG_DATA_HOME/jimha/profile.json" ]; then
+    cat "$XDG_DATA_HOME/jimha/profile.json"
 else
-    echo "ERROR: profile.json not created!"
+    echo "ERROR: profile.json not created in $XDG_DATA_HOME/jimha/!"
     exit 1
 fi
 

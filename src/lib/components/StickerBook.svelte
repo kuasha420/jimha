@@ -39,7 +39,11 @@
     }, 450);
 
     if (audioManager) {
-      audioManager.playStickerTapSound(idx);
+      if (isUnlocked(sticker.id)) {
+        audioManager.playCelebrationFanfare();
+      } else {
+        audioManager.playStickerTapSound(idx);
+      }
     }
   }
 

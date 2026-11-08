@@ -5,24 +5,28 @@ import { AmbientBgmEngine, type BgmMode } from './ambient-bgm';
 
 let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
 
-function invokeNativeAudio(keyText: string): void {
+export function invokeNativeAudioCommand(cmd: string, args?: Record<string, unknown>): void {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
   if (cachedInvoke) {
-    cachedInvoke('audio_play_key', { key: keyText }).catch((err) => {
-      console.warn('[JimhaAudioManager] Native audio IPC error:', err);
+    cachedInvoke(cmd, args).catch((err) => {
+      console.warn(`[JimhaAudioManager] Native audio IPC error (${cmd}):`, err);
     });
   } else {
     import('@tauri-apps/api/core')
       .then(({ invoke }) => {
         cachedInvoke = invoke;
-        invoke('audio_play_key', { key: keyText }).catch((err) => {
-          console.warn('[JimhaAudioManager] Native audio IPC error:', err);
+        invoke(cmd, args).catch((err) => {
+          console.warn(`[JimhaAudioManager] Native audio IPC error (${cmd}):`, err);
         });
       })
       .catch((err) => {
         console.warn('[JimhaAudioManager] Failed to load Tauri core invoke:', err);
       });
   }
+}
+
+function invokeNativeAudio(keyText: string): void {
+  invokeNativeAudioCommand('audio_play_key', { key: keyText });
 }
 
 export class JimhaAudioManager {
@@ -182,6 +186,7 @@ export class JimhaAudioManager {
   }
 
   public playStartupChime(): void {
+    invokeNativeAudioCommand('audio_play_startup');
     const chord = [261.63, 392.0, 523.25];
     chord.forEach((freq, idx) => {
       setTimeout(() => {
@@ -191,6 +196,7 @@ export class JimhaAudioManager {
   }
 
   public playCelebrationFanfare(): void {
+    invokeNativeAudioCommand('audio_play_fanfare');
     const fanfare = [523.25, 659.25, 783.99, 1046.5];
     fanfare.forEach((freq, idx) => {
       setTimeout(() => {
@@ -200,6 +206,8 @@ export class JimhaAudioManager {
   }
 
   public playStickerTapSound(index: number = 0): void {
+    const chimeIndex = 5 + (index % 6);
+    invokeNativeAudioCommand('audio_play_chime_index', { index: chimeIndex });
     const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
     const freq = highPentatonic[index % highPentatonic.length] ?? 523.25;
     this.playFrequency(freq);

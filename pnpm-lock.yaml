@@ -10,9 +10,6 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.12.4
         version: 2.12.4
-      '@tauri-apps/plugin-opener':
-        specifier: ^2.7.2
-        version: 2.7.2
       pixi.js:
         specifier: ^8.22.0
         version: 8.22.0
@@ -519,12 +516,6 @@ packages:
       }
     engines: { node: '>= 10' }
     hasBin: true
-
-  '@tauri-apps/plugin-opener@2.7.2':
-    resolution:
-      {
-        integrity: sha512-LyybP1VSzTMQiaFYcsbAse47KpivlyXdLZMQzGLEnkgQacGESnpjAfFoQ6h5sqWgAdZDH9szYjPzHMpv0Sz+TQ==,
-      }
 
   '@types/chai@5.2.3':
     resolution:
@@ -2126,10 +2117,6 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.12.4
       '@tauri-apps/cli-win32-ia32-msvc': 2.12.4
       '@tauri-apps/cli-win32-x64-msvc': 2.12.4
-
-  '@tauri-apps/plugin-opener@2.7.2':
-    dependencies:
-      '@tauri-apps/api': 2.12.4
 
   '@types/chai@5.2.3':
     dependencies:

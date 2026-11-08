@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, Command};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 const PENTATONIC_FREQUENCIES: [f32; 11] = [
     261.63,  // C4
@@ -18,11 +18,16 @@ const PENTATONIC_FREQUENCIES: [f32; 11] = [
 ];
 
 #[derive(Debug)]
-pub struct NativeAudioEngine {
+struct AudioEngineInner {
     cache_dir: PathBuf,
     proc_pool: Mutex<Vec<Child>>,
     note_index: Mutex<usize>,
     player_bin: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeAudioEngine {
+    inner: Arc<AudioEngineInner>,
 }
 
 fn resolve_cache_dir() -> PathBuf {
@@ -54,11 +59,15 @@ impl NativeAudioEngine {
         let player =
             crate::kiosk::find_binary("pw-play").or_else(|| crate::kiosk::find_binary("paplay"));
 
-        let engine = Self {
+        let inner = AudioEngineInner {
             cache_dir,
             proc_pool: Mutex::new(Vec::new()),
             note_index: Mutex::new(0),
             player_bin: player,
+        };
+
+        let engine = Self {
+            inner: Arc::new(inner),
         };
 
         // Pre-warm chime WAV files in cache directory
@@ -69,6 +78,7 @@ impl NativeAudioEngine {
     fn ensure_chime_cache(&self) {
         for (i, &freq) in PENTATONIC_FREQUENCIES.iter().enumerate() {
             let wav_path = self
+                .inner
                 .cache_dir
                 .join(format!("chime_{}_{}.wav", i, freq as u32));
             if !wav_path.exists() {
@@ -149,13 +159,58 @@ impl NativeAudioEngine {
         let _ = fs::write(path, file_bytes);
     }
 
-    pub fn play_key(&self, key_text: &str) {
-        let player = match &self.player_bin {
+    pub fn play_chime_index(&self, index: usize, volume: Option<f32>) {
+        let player = match &self.inner.player_bin {
             Some(p) => p,
             None => return,
         };
 
+        let idx = index % PENTATONIC_FREQUENCIES.len();
+        let freq = PENTATONIC_FREQUENCIES[idx];
+        let wav_path = self
+            .inner
+            .cache_dir
+            .join(format!("chime_{}_{}.wav", idx, freq as u32));
+        if !wav_path.exists() {
+            Self::write_chime_wav(&wav_path, freq);
+        }
+
+        let Some(wav_str) = wav_path.to_str() else {
+            return;
+        };
+
+        let vol = volume.unwrap_or(0.8).clamp(0.0, 1.0);
+
+        // Clean dead processes in pool and enforce voice stealing (max 4 concurrent voices)
+        if let Ok(mut pool) = self.inner.proc_pool.lock() {
+            pool.retain_mut(|p| p.try_wait().is_ok_and(|s| s.is_none()));
+            while pool.len() >= 4 {
+                if let Some(mut oldest) = pool.drain(..1).next() {
+                    let _ = oldest.kill();
+                }
+            }
+
+            let is_pw = player.to_string_lossy().contains("pw-play");
+            let mut cmd = Command::new(player);
+            if is_pw {
+                let vol_arg = format!("--volume={vol:.2}");
+                cmd.args(["--media-role=Game", &vol_arg, wav_str]);
+            } else {
+                cmd.args(["--media-role=Game", wav_str]);
+            }
+            if let Ok(child) = cmd
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+            {
+                pool.push(child);
+            }
+        }
+    }
+
+    pub fn play_key(&self, key_text: &str) {
         let mut idx_lock = self
+            .inner
             .note_index
             .lock()
             .expect("fatal invariant: note_index mutex poisoned");
@@ -168,42 +223,35 @@ impl NativeAudioEngine {
         *idx_lock = (*idx_lock + 1) % PENTATONIC_FREQUENCIES.len();
         drop(idx_lock);
 
-        let freq = PENTATONIC_FREQUENCIES[idx];
-        let wav_path = self
-            .cache_dir
-            .join(format!("chime_{}_{}.wav", idx, freq as u32));
-        if !wav_path.exists() {
-            Self::write_chime_wav(&wav_path, freq);
-        }
+        self.play_chime_index(idx, None);
+    }
 
-        let Some(wav_str) = wav_path.to_str() else {
-            return;
-        };
+    pub fn play_fanfare(&self) {
+        let engine = self.clone();
+        std::thread::spawn(move || {
+            for idx in [5, 7, 8, 10] {
+                engine.play_chime_index(idx, None);
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+        });
+    }
 
-        // Clean dead processes in pool and enforce voice stealing (max 4 concurrent voices)
-        if let Ok(mut pool) = self.proc_pool.lock() {
-            pool.retain_mut(|p| p.try_wait().is_ok_and(|s| s.is_none()));
-            while pool.len() >= 4 {
-                if let Some(mut oldest) = pool.drain(..1).next() {
-                    let _ = oldest.kill();
-                }
+    pub fn play_startup(&self) {
+        let engine = self.clone();
+        std::thread::spawn(move || {
+            for idx in [0, 3, 5] {
+                engine.play_chime_index(idx, None);
+                std::thread::sleep(std::time::Duration::from_millis(100));
             }
+        });
+    }
 
-            let is_pw = player.to_string_lossy().contains("pw-play");
-            let mut cmd = Command::new(player);
-            if is_pw {
-                cmd.args(["--media-role=Game", "--volume=0.8", wav_str]);
-            } else {
-                cmd.args(["--media-role=Game", wav_str]);
-            }
-            if let Ok(child) = cmd
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-            {
-                pool.push(child);
-            }
-        }
+    pub fn play_bgm_drop(&self) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .map_or(0, |d| d.subsec_nanos() as usize);
+        let idx = now % PENTATONIC_FREQUENCIES.len();
+        self.play_chime_index(idx, Some(0.12));
     }
 }
 
@@ -246,5 +294,15 @@ mod tests {
         assert_eq!(&bytes[36..40], b"data");
 
         let _ = std::fs::remove_file(test_path);
+    }
+
+    #[test]
+    fn test_native_audio_engine_methods() {
+        let engine = NativeAudioEngine::new();
+        engine.play_chime_index(0, Some(0.5));
+        engine.play_key("A");
+        engine.play_bgm_drop();
+        engine.play_startup();
+        engine.play_fanfare();
     }
 }

@@ -29,6 +29,33 @@ fn audio_play_key(state: tauri::State<'_, NativeAudioEngine>, key: String) -> Re
 }
 
 #[tauri::command]
+fn audio_play_fanfare(state: tauri::State<'_, NativeAudioEngine>) -> Result<(), String> {
+    state.play_fanfare();
+    Ok(())
+}
+
+#[tauri::command]
+fn audio_play_startup(state: tauri::State<'_, NativeAudioEngine>) -> Result<(), String> {
+    state.play_startup();
+    Ok(())
+}
+
+#[tauri::command]
+fn audio_play_chime_index(
+    state: tauri::State<'_, NativeAudioEngine>,
+    index: usize,
+) -> Result<(), String> {
+    state.play_chime_index(index, None);
+    Ok(())
+}
+
+#[tauri::command]
+fn audio_play_bgm_drop(state: tauri::State<'_, NativeAudioEngine>) -> Result<(), String> {
+    state.play_bgm_drop();
+    Ok(())
+}
+
+#[tauri::command]
 async fn kiosk_query_windows() -> Result<Vec<WindowEntry>, String> {
     kiosk::query_kwin_windows().await
 }
@@ -85,10 +112,13 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(profile_store))
         .manage(NativeAudioEngine::new())
-        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             audio_play_key,
+            audio_play_fanfare,
+            audio_play_startup,
+            audio_play_chime_index,
+            audio_play_bgm_drop,
             kiosk_inhibit_shortcuts,
             kiosk_query_windows,
             kiosk_handover,
