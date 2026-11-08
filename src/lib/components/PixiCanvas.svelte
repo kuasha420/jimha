@@ -4,6 +4,11 @@
   import { getRandomColor, resolveKeyDisplay } from '../engine/palette';
   import { calculateElasticScale, calculateCardAlpha } from '../engine/spring';
   import {
+    computeBaseFontSizes,
+    computeSafeViewportCeilings,
+    clampFontSizeToCeiling,
+  } from '../engine/typography';
+  import {
     spawnParticleBurst,
     spawnBubble,
     updateParticles,
@@ -125,15 +130,12 @@
 
     const width = app.screen.width;
     const height = app.screen.height;
-    const minDim = Math.min(width, height);
-    let fontSize = Math.max(48, Math.round(minDim * 0.26));
-    let subFontSize = Math.max(16, Math.round(minDim * 0.045));
+    const viewport = { width, height };
 
-    // For multi-character titles, scale down baseline font size proportionally
-    if (currentTitle.length > 2) {
-      const lenRatio = Math.max(1, currentTitle.length / 3);
-      fontSize = Math.max(28, Math.round(fontSize / Math.sqrt(lenRatio)));
-    }
+    // 1. Compute responsive baseline font sizes with length damping
+    const base = computeBaseFontSizes(viewport, currentTitle);
+    let fontSize = base.fontSize;
+    let subFontSize = base.subFontSize;
 
     // Update title text and shadow
     keyTitleText.text = currentTitle;
@@ -153,21 +155,25 @@
       fill: '#000000',
     });
 
-    // Enforce strict width ceiling to prevent text from clipping off-screen (especially during 1.28x spring bounce on Steam Deck)
+    // 2. Compute safe viewport ceilings that account for 1.30x maximum elastic spring overshoot
+    const ceilings = computeSafeViewportCeilings(viewport, fontSize);
+
+    // Enforce strict title width ceiling
     const titleBounds = keyTitleText.getLocalBounds();
-    const maxAllowedTitleWidth = width * 0.72; // leaves safety margin even at peak spring expansion
-    if (titleBounds.width > maxAllowedTitleWidth && titleBounds.width > 0) {
-      const scaleDown = maxAllowedTitleWidth / titleBounds.width;
-      fontSize = Math.max(22, Math.round(fontSize * scaleDown));
-      keyTitleText.style.fontSize = fontSize;
-      keyShadowText.style.fontSize = fontSize;
-    }
+    fontSize = clampFontSizeToCeiling(
+      fontSize,
+      titleBounds.width,
+      ceilings.maxAllowedTitleWidth,
+      20
+    );
+    keyTitleText.style.fontSize = fontSize;
+    keyShadowText.style.fontSize = fontSize;
 
     keyTitleText.anchor.set(0.5, 0.5);
     keyShadowText.anchor.set(0.5, 0.5);
     keyShadowText.position.set(6, 6);
 
-    // Update subtitle text & background badge
+    // 3. Update subtitle text & background badge
     subtitleText.text = currentSubtitle;
     subtitleText.style = new TextStyle({
       fontFamily: 'Cantarell, system-ui, -apple-system, sans-serif',
@@ -176,20 +182,22 @@
       fill: '#FFFFFF',
     });
 
+    // Enforce strict subtitle width ceiling (ensures badge never overflows screen)
     const initialSubBounds = subtitleText.getLocalBounds();
-    const maxAllowedSubWidth = width * 0.82;
-    if (initialSubBounds.width > maxAllowedSubWidth && initialSubBounds.width > 0) {
-      const subScaleDown = maxAllowedSubWidth / initialSubBounds.width;
-      subFontSize = Math.max(12, Math.round(subFontSize * subScaleDown));
-      subtitleText.style.fontSize = subFontSize;
-    }
-
+    subFontSize = clampFontSizeToCeiling(
+      subFontSize,
+      initialSubBounds.width,
+      ceilings.maxAllowedSubWidth,
+      12
+    );
+    subtitleText.style.fontSize = subFontSize;
     subtitleText.anchor.set(0.5, 0.5);
 
+    // Recompute badge bounds and vertical position
     const subBounds = subtitleText.getLocalBounds();
-    const badgeW = subBounds.width + 48;
+    const badgeW = Math.min(ceilings.maxAllowedBadgeWidth, subBounds.width + 48);
     const badgeH = subBounds.height + 20;
-    const badgeY = fontSize * 0.55 + 35;
+    const badgeY = ceilings.badgeY;
 
     if (subtitleContainer && subtitleBg) {
       subtitleContainer.position.set(0, badgeY);

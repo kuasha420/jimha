@@ -63,8 +63,15 @@ jobs:
 
       - name: Build Tauri Distribution Bundles (Deb & AppImage)
         run: |
-          # Tauri CLI bundle build
-          pnpm tauri build
+          # Tauri CLI bundle build with retry to handle transient external CDN 504 timeouts (e.g. AppRun binary)
+          n=0
+          until [ "$n" -ge 3 ]; do
+            pnpm tauri build && break
+            n=$((n+1))
+            echo "::warning::tauri build failed (attempt $n/3), retrying in 10s..."
+            sleep 10
+          done
+          [ "$n" -lt 3 ]
 
       - name: Package Multi-Target Release Artifacts
         env:
