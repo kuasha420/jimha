@@ -13,6 +13,7 @@
     type GamepadButtonEvent,
     type GamepadButtonId,
   } from './lib/engine/gamepad';
+  import { InputShadowFilter } from './lib/engine/input-shadow-filter';
   import { STICKERS } from './lib/content/stickers';
   import type { InstrumentId } from './lib/content/instruments';
   import { APP_NAME } from './lib/constants';
@@ -35,6 +36,7 @@
   let switcherRef: VirtualSwitcher | null = $state(null);
   let audioManager: JimhaAudioManager | null = $state(null);
   let gamepadManager: GamepadManager | null = null;
+  const inputShadowFilter = new InputShadowFilter({ windowMs: 200 });
   let touchCount = $state(0);
   let lastNoteName = $state('');
 
@@ -418,6 +420,17 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
+    // 0. Pre-flight Gamepad poll: if a physical controller button was pressed, process it first
+    if (gamepadManager) {
+      gamepadManager.poll();
+    }
+
+    // 0b. Drop synthetic keyboard shadow events produced by Steam Desktop controller mapping
+    if (inputShadowFilter.isSyntheticKeyboardShadow(event.key, pressedGamepadButtons)) {
+      event.preventDefault();
+      return;
+    }
+
     pressedKeys.add(event.key);
 
     if (isStickerBookOpen) {
@@ -493,6 +506,7 @@
 
   function handleGamepadButtonDown(event: GamepadButtonEvent) {
     pressedGamepadButtons.add(event.buttonId);
+    inputShadowFilter.recordButtonDown(event.buttonId);
 
     // Check Gamepad SELECT + START Exit Gate
     const selectDown = pressedGamepadButtons.has('SELECT');
@@ -547,6 +561,7 @@
 
   function handleGamepadButtonUp(event: GamepadButtonEvent) {
     pressedGamepadButtons.delete(event.buttonId);
+    inputShadowFilter.recordButtonUp(event.buttonId);
 
     if (event.buttonId === 'SELECT' || event.buttonId === 'START') {
       isGamepadExitPressed = false;
