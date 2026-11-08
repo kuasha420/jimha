@@ -1,9 +1,9 @@
-use std::fs;
-use std::path::PathBuf;
-use std::process::{Child, Command};
+use rodio::buffer::SamplesBuffer;
+use rodio::{DeviceSinkBuilder, MixerDeviceSink, Player};
+use std::num::NonZero;
 use std::sync::{Arc, Mutex};
 
-const PENTATONIC_FREQUENCIES: [f32; 11] = [
+pub const PENTATONIC_FREQUENCIES: [f32; 11] = [
     261.63,  // C4
     293.66,  // D4
     329.63,  // E4
@@ -17,32 +17,73 @@ const PENTATONIC_FREQUENCIES: [f32; 11] = [
     1046.50, // C6
 ];
 
+pub const SAMPLE_RATE: u32 = 44_100;
+pub const MAX_PEDIATRIC_VOLUME: f32 = 0.80;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstrumentKind {
+    Celesta,
+    Marimba,
+    Kalimba,
+    MusicBox,
+}
+
+impl InstrumentKind {
+    pub fn parse(s: &str) -> Self {
+        match s.to_ascii_lowercase().as_str() {
+            "marimba" => Self::Marimba,
+            "kalimba" => Self::Kalimba,
+            "music_box" => Self::MusicBox,
+            _ => Self::Celesta,
+        }
+    }
+
+    pub fn params(&self) -> (&'static [f32], &'static [f32], f32, f32, f32) {
+        // (multipliers, gains, decay_body_rate, decay_shimmer_rate, attack_seconds)
+        match self {
+            Self::Celesta => (
+                &[1.0, 2.0, 3.0, 4.2, 5.4],
+                &[1.0, 0.35, 0.18, 0.10, 0.05],
+                2.5,
+                5.5,
+                0.004,
+            ),
+            Self::Marimba => (
+                &[1.0, 3.0, 9.2, 12.0],
+                &[1.0, 0.40, 0.08, 0.03],
+                4.5,
+                9.0,
+                0.002,
+            ),
+            Self::Kalimba => (
+                &[1.0, 2.76, 5.4, 8.1],
+                &[1.0, 0.25, 0.15, 0.06],
+                2.0,
+                4.0,
+                0.005,
+            ),
+            Self::MusicBox => (
+                &[1.0, 2.0, 3.0, 4.0, 6.0],
+                &[1.0, 0.50, 0.30, 0.15, 0.08],
+                1.8,
+                3.0,
+                0.001,
+            ),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct AudioEngineInner {
-    cache_dir: PathBuf,
-    proc_pool: Mutex<Vec<Child>>,
+    pcm_cache: Mutex<Vec<Vec<f32>>>,
+    device_sink: Option<MixerDeviceSink>,
     note_index: Mutex<usize>,
-    player_bin: Option<PathBuf>,
+    current_instrument: Mutex<InstrumentKind>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NativeAudioEngine {
     inner: Arc<AudioEngineInner>,
-}
-
-fn resolve_cache_dir() -> PathBuf {
-    if let Ok(xdg) = std::env::var("XDG_CACHE_HOME") {
-        if !xdg.is_empty() {
-            return PathBuf::from(xdg).join("jimha").join("audio_cache_v2");
-        }
-    }
-    if let Ok(home) = std::env::var("HOME") {
-        return PathBuf::from(home)
-            .join(".cache")
-            .join("jimha")
-            .join("audio_cache_v2");
-    }
-    PathBuf::from("/tmp").join("jimha").join("audio_cache_v2")
 }
 
 impl Default for NativeAudioEngine {
@@ -53,55 +94,70 @@ impl Default for NativeAudioEngine {
 
 impl NativeAudioEngine {
     pub fn new() -> Self {
-        let cache_dir = resolve_cache_dir();
-        let _ = fs::create_dir_all(&cache_dir);
+        let device_sink = DeviceSinkBuilder::open_default_sink().ok();
 
-        let player =
-            crate::kiosk::find_binary("pw-play").or_else(|| crate::kiosk::find_binary("paplay"));
+        let mut pcm_cache = Vec::with_capacity(PENTATONIC_FREQUENCIES.len());
+        for &freq in &PENTATONIC_FREQUENCIES {
+            pcm_cache.push(Self::synthesize_chime_pcm(freq, InstrumentKind::Celesta));
+        }
 
         let inner = AudioEngineInner {
-            cache_dir,
-            proc_pool: Mutex::new(Vec::new()),
+            pcm_cache: Mutex::new(pcm_cache),
+            device_sink,
             note_index: Mutex::new(0),
-            player_bin: player,
+            current_instrument: Mutex::new(InstrumentKind::Celesta),
         };
 
-        let engine = Self {
+        Self {
             inner: Arc::new(inner),
-        };
-
-        // Pre-warm chime WAV files in cache directory
-        engine.ensure_chime_cache();
-        engine
-    }
-
-    fn ensure_chime_cache(&self) {
-        for (i, &freq) in PENTATONIC_FREQUENCIES.iter().enumerate() {
-            let wav_path = self
-                .inner
-                .cache_dir
-                .join(format!("chime_{}_{}.wav", i, freq as u32));
-            if !wav_path.exists() {
-                Self::write_chime_wav(&wav_path, freq);
-            }
         }
     }
 
-    fn write_chime_wav(path: &PathBuf, freq: f32) {
-        let sample_rate = 44100u32;
-        let duration = 0.85f32;
-        let total_samples = (sample_rate as f32 * duration) as usize;
-        let mut samples_i16 = Vec::with_capacity(total_samples * 2);
+    pub fn set_instrument(&self, instrument: &str) {
+        let kind = InstrumentKind::parse(instrument);
+        let mut cur = match self.inner.current_instrument.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if *cur == kind {
+            return;
+        }
+        *cur = kind;
+        drop(cur);
 
-        let mults = [1.0f32, 2.0, 3.0, 4.2, 5.4];
-        let gains = [1.0f32, 0.35, 0.18, 0.10, 0.05];
+        let mut new_cache = Vec::with_capacity(PENTATONIC_FREQUENCIES.len());
+        for &freq in &PENTATONIC_FREQUENCIES {
+            new_cache.push(Self::synthesize_chime_pcm(freq, kind));
+        }
+
+        let mut cache_guard = match self.inner.pcm_cache.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        *cache_guard = new_cache;
+    }
+
+    pub fn synthesize_chime_pcm(freq: f32, instrument: InstrumentKind) -> Vec<f32> {
+        let sample_rate = SAMPLE_RATE as f32;
+        let duration = 0.85f32;
+        let total_samples = (sample_rate * duration) as usize;
+        let mut samples = Vec::with_capacity(total_samples * 2);
+
+        let (mults, gains, decay_body_rate, decay_shimmer_rate, attack_sec) = instrument.params();
         let phase_offset = std::f32::consts::PI * 0.08;
 
+        // 90Hz highpass filter coefficient (R = exp(-2*pi*90/44100)) to protect small handheld drivers
+        let hp_r = 0.98726f32;
+        let mut prev_x_l = 0.0f32;
+        let mut prev_y_l = 0.0f32;
+        let mut prev_x_r = 0.0f32;
+        let mut prev_y_r = 0.0f32;
+
         for s in 0..total_samples {
-            let t = s as f32 / sample_rate as f32;
-            let attack = (t / 0.004).min(1.0);
-            let decay_body = (-2.5 * t).exp();
-            let decay_shimmer = (-5.5 * t).exp();
+            let t = s as f32 / sample_rate;
+            let attack = (t / attack_sec).min(1.0);
+            let decay_body = (-decay_body_rate * t).exp();
+            let decay_shimmer = (-decay_shimmer_rate * t).exp();
 
             let mut sum_l = 0.0f32;
             let mut sum_r = 0.0f32;
@@ -126,94 +182,66 @@ impl NativeAudioEngine {
                 sum_r += (val + phase_r.sin() * 0.1) * decay;
             }
 
-            let left = (attack * sum_l * 0.45 * 32767.0).clamp(-32768.0, 32767.0) as i16;
-            let right = (attack * sum_r * 0.45 * 32767.0).clamp(-32768.0, 32767.0) as i16;
-            samples_i16.push(left);
-            samples_i16.push(right);
+            let raw_l = attack * sum_l * 0.45;
+            let raw_r = attack * sum_r * 0.45;
+
+            // Apply 90Hz rumble high-pass filter
+            let hp_l = raw_l - prev_x_l + hp_r * prev_y_l;
+            prev_x_l = raw_l;
+            prev_y_l = hp_l;
+
+            let hp_r_sample = raw_r - prev_x_r + hp_r * prev_y_r;
+            prev_x_r = raw_r;
+            prev_y_r = hp_r_sample;
+
+            let left = hp_l.clamp(-1.0, 1.0);
+            let right = hp_r_sample.clamp(-1.0, 1.0);
+            samples.push(left);
+            samples.push(right);
         }
 
-        // Standard 44-byte Stereo 16-bit PCM WAV header
-        let byte_rate: u32 = sample_rate * 4;
-        let block_align: u16 = 4;
-        let data_size: u32 = (samples_i16.len() * 2) as u32;
-        let file_size: u32 = 36 + data_size;
-
-        let mut header = Vec::with_capacity(44);
-        header.extend_from_slice(b"RIFF");
-        header.extend_from_slice(&file_size.to_le_bytes());
-        header.extend_from_slice(b"WAVEfmt ");
-        header.extend_from_slice(&16u32.to_le_bytes()); // Subchunk1Size (16 for PCM)
-        header.extend_from_slice(&1u16.to_le_bytes()); // AudioFormat (1 = PCM)
-        header.extend_from_slice(&2u16.to_le_bytes()); // NumChannels (2)
-        header.extend_from_slice(&sample_rate.to_le_bytes());
-        header.extend_from_slice(&byte_rate.to_le_bytes());
-        header.extend_from_slice(&block_align.to_le_bytes());
-        header.extend_from_slice(&16u16.to_le_bytes()); // BitsPerSample
-        header.extend_from_slice(b"data");
-        header.extend_from_slice(&data_size.to_le_bytes());
-
-        let mut file_bytes = header;
-        for sample in samples_i16 {
-            file_bytes.extend_from_slice(&sample.to_le_bytes());
-        }
-        let _ = fs::write(path, file_bytes);
+        samples
     }
 
     pub fn play_chime_index(&self, index: usize, volume: Option<f32>) {
-        let player = match &self.inner.player_bin {
-            Some(p) => p,
-            None => return,
-        };
-
-        let idx = index % PENTATONIC_FREQUENCIES.len();
-        let freq = PENTATONIC_FREQUENCIES[idx];
-        let wav_path = self
-            .inner
-            .cache_dir
-            .join(format!("chime_{}_{}.wav", idx, freq as u32));
-        if !wav_path.exists() {
-            Self::write_chime_wav(&wav_path, freq);
-        }
-
-        let Some(wav_str) = wav_path.to_str() else {
+        let Some(sink) = &self.inner.device_sink else {
             return;
         };
 
-        let vol = volume.unwrap_or(0.8).clamp(0.0, 1.0);
+        let idx = index % PENTATONIC_FREQUENCIES.len();
+        let samples = {
+            let cache_guard = match self.inner.pcm_cache.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            cache_guard[idx].clone()
+        };
+        let vol = volume
+            .unwrap_or(MAX_PEDIATRIC_VOLUME)
+            .clamp(0.0, MAX_PEDIATRIC_VOLUME);
 
-        // Clean dead processes in pool and enforce voice stealing (max 4 concurrent voices)
-        if let Ok(mut pool) = self.inner.proc_pool.lock() {
-            pool.retain_mut(|p| p.try_wait().is_ok_and(|s| s.is_none()));
-            while pool.len() >= 4 {
-                if let Some(mut oldest) = pool.drain(..1).next() {
-                    let _ = oldest.kill();
-                }
-            }
+        let channels = match NonZero::new(2) {
+            Some(c) => c,
+            None => return,
+        };
+        let sample_rate = match NonZero::new(SAMPLE_RATE) {
+            Some(sr) => sr,
+            None => return,
+        };
 
-            let is_pw = player.to_string_lossy().contains("pw-play");
-            let mut cmd = Command::new(player);
-            if is_pw {
-                let vol_arg = format!("--volume={vol:.2}");
-                cmd.args(["--media-role=Game", &vol_arg, wav_str]);
-            } else {
-                cmd.args(["--media-role=Game", wav_str]);
-            }
-            if let Ok(child) = cmd
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-            {
-                pool.push(child);
-            }
-        }
+        let source = SamplesBuffer::new(channels, sample_rate, samples);
+        let player = Player::connect_new(sink.mixer());
+        player.set_volume(vol);
+        player.append(source);
+        player.detach();
     }
 
     pub fn play_key(&self, key_text: &str) {
-        let mut idx_lock = self
-            .inner
-            .note_index
-            .lock()
-            .expect("fatal invariant: note_index mutex poisoned");
+        let mut idx_lock = match self.inner.note_index.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
         let idx = if key_text.is_empty() {
             *idx_lock % PENTATONIC_FREQUENCIES.len()
         } else {
@@ -258,7 +286,10 @@ impl NativeAudioEngine {
         if indices.is_empty() {
             return;
         }
-        let voice_vol = volume.unwrap_or(0.8).clamp(0.0, 1.0) / (indices.len() as f32).sqrt();
+        let voice_vol = volume
+            .unwrap_or(MAX_PEDIATRIC_VOLUME)
+            .clamp(0.0, MAX_PEDIATRIC_VOLUME)
+            / (indices.len() as f32).sqrt();
         for &idx in indices {
             self.play_chime_index(idx, Some(voice_vol));
         }
@@ -270,45 +301,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_resolve_cache_dir() {
-        let dir = resolve_cache_dir();
-        assert!(dir.to_string_lossy().contains("audio_cache_v2"));
+    fn test_pentatonic_frequencies_count() {
+        assert_eq!(PENTATONIC_FREQUENCIES.len(), 11);
     }
 
     #[test]
-    fn test_write_chime_wav_valid_riff_header() {
-        let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join(format!("test_chime_{}.wav", std::process::id()));
-        NativeAudioEngine::write_chime_wav(&test_path, 440.0);
+    fn test_synthesize_chime_pcm_length_and_stereo() {
+        for kind in [
+            InstrumentKind::Celesta,
+            InstrumentKind::Marimba,
+            InstrumentKind::Kalimba,
+            InstrumentKind::MusicBox,
+        ] {
+            let samples = NativeAudioEngine::synthesize_chime_pcm(440.0, kind);
+            let expected_frames = (SAMPLE_RATE as f32 * 0.85) as usize;
+            assert_eq!(samples.len(), expected_frames * 2);
 
-        assert!(test_path.exists());
-        let bytes = std::fs::read(&test_path).expect("read test wav");
-        assert!(bytes.len() >= 44);
-
-        assert_eq!(&bytes[0..4], b"RIFF");
-        assert_eq!(&bytes[8..12], b"WAVE");
-        assert_eq!(&bytes[12..16], b"fmt ");
-
-        let audio_format = u16::from_le_bytes(bytes[20..22].try_into().unwrap());
-        assert_eq!(audio_format, 1);
-
-        let channels = u16::from_le_bytes(bytes[22..24].try_into().unwrap());
-        assert_eq!(channels, 2);
-
-        let sample_rate = u32::from_le_bytes(bytes[24..28].try_into().unwrap());
-        assert_eq!(sample_rate, 44100);
-
-        let bits_per_sample = u16::from_le_bytes(bytes[34..36].try_into().unwrap());
-        assert_eq!(bits_per_sample, 16);
-
-        assert_eq!(&bytes[36..40], b"data");
-
-        let _ = std::fs::remove_file(test_path);
+            // Assert all samples are within valid [-1.0, 1.0] range
+            for &sample in &samples {
+                assert!((-1.0..=1.0).contains(&sample));
+            }
+        }
     }
 
     #[test]
-    fn test_native_audio_engine_methods() {
+    fn test_native_audio_engine_methods_headless() {
         let engine = NativeAudioEngine::new();
+        engine.set_instrument("kalimba");
+        engine.set_instrument("marimba");
+        engine.set_instrument("music_box");
+        engine.set_instrument("celesta");
         engine.play_chime_index(0, Some(0.5));
         engine.play_key("A");
         engine.play_bgm_drop();

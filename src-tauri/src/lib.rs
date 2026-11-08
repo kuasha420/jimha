@@ -67,6 +67,15 @@ fn audio_play_bgm_drop(state: tauri::State<'_, NativeAudioEngine>) -> Result<(),
 }
 
 #[tauri::command]
+fn audio_set_instrument(
+    state: tauri::State<'_, NativeAudioEngine>,
+    instrument: String,
+) -> Result<(), String> {
+    state.set_instrument(&instrument);
+    Ok(())
+}
+
+#[tauri::command]
 async fn kiosk_query_windows() -> Result<Vec<WindowEntry>, String> {
     kiosk::query_kwin_windows().await
 }
@@ -149,6 +158,7 @@ pub fn run() {
             audio_play_chime_index,
             audio_play_chord,
             audio_play_bgm_drop,
+            audio_set_instrument,
             kiosk_inhibit_shortcuts,
             kiosk_query_windows,
             kiosk_handover,

@@ -208,13 +208,13 @@ export class MelodySequencer {
       return;
     }
 
-    // 1. Native PipeWire Audio Dispatch
-    invokeNativeAudioCommand('audio_play_chime_index', { index, volume });
-
-    // 2. Web Audio Fallback Dispatch
+    // Single-sink: route through Web Audio sink (with lowpass filtering) if available,
+    // otherwise fallback to native IPC command.
     if (this.sink) {
       const freq = PENTATONIC_FREQUENCIES[index % PENTATONIC_FREQUENCIES.length] ?? 261.63;
       this.sink.playWebNote(freq, volume);
+    } else {
+      invokeNativeAudioCommand('audio_play_chime_index', { index, volume });
     }
   }
 

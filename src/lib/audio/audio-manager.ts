@@ -5,8 +5,12 @@ import { AmbientBgmEngine, type BgmMode } from './ambient-bgm';
 
 let cachedInvoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
 
+export function isTauriEnvironment(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
 export function invokeNativeAudioCommand(cmd: string, args?: Record<string, unknown>): void {
-  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+  if (!isTauriEnvironment()) return;
   if (cachedInvoke) {
     cachedInvoke(cmd, args).catch((err) => {
       console.warn(`[JimhaAudioManager] Native audio IPC error (${cmd}):`, err);
@@ -87,6 +91,7 @@ export class JimhaAudioManager {
   public setInstrument(instrument: InstrumentId): void {
     if (this.instrument === instrument) return;
     this.instrument = instrument;
+    invokeNativeAudioCommand('audio_set_instrument', { instrument });
     this.bufferCache.clear();
     this.ensureBufferCache();
   }
@@ -131,11 +136,12 @@ export class JimhaAudioManager {
       return selection;
     }
 
-    // 1. Native PipeWire stream via Tauri (0ms latency, bypasses browser sandbox)
-    invokeNativeAudio(keyText);
-
-    // 2. In-browser Web Audio pre-cached buffer playback
-    this.playFrequency(selection.frequency);
+    // Single-sink dispatch: native in-process engine under Tauri, Web Audio fallback in browser
+    if (isTauriEnvironment()) {
+      invokeNativeAudio(keyText);
+    } else {
+      this.playFrequency(selection.frequency);
+    }
 
     return selection;
   }
@@ -200,7 +206,10 @@ export class JimhaAudioManager {
   }
 
   public playStartupChime(): void {
-    invokeNativeAudioCommand('audio_play_startup');
+    if (isTauriEnvironment()) {
+      invokeNativeAudioCommand('audio_play_startup');
+      return;
+    }
     const chord = [261.63, 392.0, 523.25];
     chord.forEach((freq, idx) => {
       setTimeout(() => {
@@ -210,7 +219,10 @@ export class JimhaAudioManager {
   }
 
   public playCelebrationFanfare(): void {
-    invokeNativeAudioCommand('audio_play_fanfare');
+    if (isTauriEnvironment()) {
+      invokeNativeAudioCommand('audio_play_fanfare');
+      return;
+    }
     const fanfare = [523.25, 659.25, 783.99, 1046.5];
     fanfare.forEach((freq, idx) => {
       setTimeout(() => {
@@ -221,7 +233,10 @@ export class JimhaAudioManager {
 
   public playStickerTapSound(index: number = 0): void {
     const chimeIndex = 5 + (index % 6);
-    invokeNativeAudioCommand('audio_play_chime_index', { index: chimeIndex });
+    if (isTauriEnvironment()) {
+      invokeNativeAudioCommand('audio_play_chime_index', { index: chimeIndex });
+      return;
+    }
     const highPentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
     const freq = highPentatonic[index % highPentatonic.length] ?? 523.25;
     this.playFrequency(freq);
@@ -229,7 +244,10 @@ export class JimhaAudioManager {
 
   public playChord(indices: number[], volume?: number): void {
     if (!indices || indices.length === 0) return;
-    invokeNativeAudioCommand('audio_play_chord', { indices, volume });
+    if (isTauriEnvironment()) {
+      invokeNativeAudioCommand('audio_play_chord', { indices, volume });
+      return;
+    }
 
     for (const idx of indices) {
       const freq = PENTATONIC_FREQUENCIES[idx % PENTATONIC_FREQUENCIES.length];

@@ -50,7 +50,10 @@ describe('AmbientBgmEngine Contract', () => {
       connect: vi.fn(),
     };
     const mockGain = {
-      gain: { setValueAtTime: vi.fn() },
+      gain: {
+        setValueAtTime: vi.fn(),
+        setTargetAtTime: vi.fn(),
+      },
       connect: vi.fn(),
     };
     const mockCtx = {
@@ -62,21 +65,47 @@ describe('AmbientBgmEngine Contract', () => {
 
     const engine = new AmbientBgmEngine(mockCtx);
     expect(engine.getMode()).toBe('idle');
-    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(3000, 10);
+    expect(mockFilter.frequency.setValueAtTime).toHaveBeenCalledWith(2500, 10);
 
-    // Switch to playing mode -> 900 Hz with 0.3s transition
+    // Switch to playing mode -> 450 Hz with 0.2s transition
     engine.setMode('playing');
     expect(engine.getMode()).toBe('playing');
-    expect(setTargetAtTime).toHaveBeenCalledWith(900, 10, 0.3);
+    expect(setTargetAtTime).toHaveBeenCalledWith(450, 10, 0.2);
 
-    // Switch to ui mode -> 750 Hz with 0.3s transition
+    // Switch to ui mode -> 600 Hz with 1.5s transition
     engine.setMode('ui');
     expect(engine.getMode()).toBe('ui');
-    expect(setTargetAtTime).toHaveBeenCalledWith(750, 10, 0.3);
+    expect(setTargetAtTime).toHaveBeenCalledWith(600, 10, 1.5);
 
-    // Switch back to idle mode -> 3000 Hz with 0.3s transition
+    // Switch back to idle mode -> 2500 Hz with 1.5s transition
     engine.setMode('idle');
     expect(engine.getMode()).toBe('idle');
-    expect(setTargetAtTime).toHaveBeenCalledWith(3000, 10, 0.3);
+    expect(setTargetAtTime).toHaveBeenCalledWith(2500, 10, 1.5);
+  });
+
+  it('automatically recovers from playing to idle mode after 3.5s idle timeout', () => {
+    vi.useFakeTimers();
+    const engine = new AmbientBgmEngine();
+    engine.start();
+    expect(engine.getMode()).toBe('idle');
+
+    engine.notifyInput();
+    expect(engine.getMode()).toBe('playing');
+
+    // Advance 2000ms -> should still be playing
+    vi.advanceTimersByTime(2000);
+    expect(engine.getMode()).toBe('playing');
+
+    // Re-notify input before timer expires -> resets timer
+    engine.notifyInput();
+    vi.advanceTimersByTime(2000);
+    expect(engine.getMode()).toBe('playing');
+
+    // Advance remaining time past 3500ms
+    vi.advanceTimersByTime(2000);
+    expect(engine.getMode()).toBe('idle');
+
+    engine.stop();
+    vi.useRealTimers();
   });
 });

@@ -10,6 +10,10 @@ export class AmbientBgmEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private filterNode: BiquadFilterNode | null = null;
+  private highPassFilter: BiquadFilterNode | null = null;
+  private droneOsc: OscillatorNode | null = null;
+  private droneGain: GainNode | null = null;
+  private recoveryTimer: ReturnType<typeof setTimeout> | null = null;
   private mode: BgmMode = 'idle';
   private isRunning: boolean = false;
   private sequencer: MelodySequencer;
@@ -30,6 +34,9 @@ export class AmbientBgmEngine {
     if (this.ctx === ctx && this.masterGain) return;
     this.ctx = ctx;
     this.initNodes(ctx);
+    if (this.isRunning) {
+      this.startDrone();
+    }
   }
 
   private initNodes(ctx: AudioContext): void {
@@ -39,33 +46,94 @@ export class AmbientBgmEngine {
     if (!this.filterNode && ctx.createBiquadFilter) {
       this.filterNode = ctx.createBiquadFilter();
       this.filterNode.type = 'lowpass';
-      this.filterNode.frequency.setValueAtTime(3000, ctx.currentTime);
+      this.filterNode.frequency.setValueAtTime(2500, ctx.currentTime);
     }
 
-    if (!this.masterGain && ctx.createGain) {
+    if (!this.masterGain) {
       this.masterGain = ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.15, ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(0.14, ctx.currentTime);
     }
 
-    if (this.filterNode && this.masterGain) {
-      try {
-        this.filterNode.connect(this.masterGain);
+    if (!this.highPassFilter && ctx.createBiquadFilter) {
+      this.highPassFilter = ctx.createBiquadFilter();
+      this.highPassFilter.type = 'highpass';
+      this.highPassFilter.frequency.setValueAtTime(90, ctx.currentTime);
+      this.highPassFilter.Q?.setValueAtTime(0.707, ctx.currentTime);
+    }
+
+    this.connectGraph(ctx);
+  }
+
+  private connectGraph(ctx: AudioContext): void {
+    if (!this.filterNode || !this.masterGain) return;
+    try {
+      this.filterNode.connect(this.masterGain);
+      if (this.highPassFilter) {
+        this.masterGain.connect(this.highPassFilter);
+        this.highPassFilter.connect(ctx.destination);
+      } else {
         this.masterGain.connect(ctx.destination);
-      } catch (err) {
-        console.warn('[AmbientBgmEngine] Failed to connect audio graph nodes:', err);
       }
+    } catch (err) {
+      console.warn('[AmbientBgmEngine] Failed to connect audio graph nodes:', err);
     }
   }
 
   public start(): void {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.startDrone();
     this.sequencer.start();
   }
 
   public stop(): void {
     this.isRunning = false;
+    if (this.recoveryTimer) {
+      clearTimeout(this.recoveryTimer);
+      this.recoveryTimer = null;
+    }
+    this.stopDrone();
     this.sequencer.stop();
+  }
+
+  private startDrone(): void {
+    if (!this.ctx || !this.filterNode || this.droneOsc) return;
+    if (typeof this.ctx.createOscillator !== 'function') return;
+
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(130.81, this.ctx.currentTime); // C3 pedal drone
+      gain.gain.setValueAtTime(0.018, this.ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(this.filterNode);
+      osc.start();
+      this.droneOsc = osc;
+      this.droneGain = gain;
+    } catch (err) {
+      console.debug('[AmbientBgmEngine] Failed to initialize drone oscillator:', err);
+    }
+  }
+
+  private stopDrone(): void {
+    if (this.droneOsc) {
+      try {
+        this.droneOsc.stop();
+        this.droneOsc.disconnect();
+      } catch {
+        // ignore
+      }
+      this.droneOsc = null;
+    }
+    if (this.droneGain) {
+      try {
+        this.droneGain.disconnect();
+      } catch {
+        // ignore
+      }
+      this.droneGain = null;
+    }
   }
 
   public setTrack(track: MelodicTrack): void {
@@ -87,27 +155,50 @@ export class AmbientBgmEngine {
   }
 
   public notifyInput(): void {
-    if (this.mode === 'idle') {
-      this.setMode('playing');
+    if (this.recoveryTimer) {
+      clearTimeout(this.recoveryTimer);
+      this.recoveryTimer = null;
     }
+
+    if (this.mode !== 'ui') {
+      this.setMode('playing');
+      this.recoveryTimer = setTimeout(() => {
+        if (this.mode === 'playing') {
+          this.setMode('idle');
+        }
+      }, 3500);
+    }
+
     this.sequencer.notifyInput();
   }
 
   private applyModeParameters(): void {
-    if (!this.ctx || !this.filterNode) return;
+    if (!this.ctx || !this.filterNode || !this.masterGain) return;
     const now = this.ctx.currentTime;
-    let targetCutoff = 3000;
+    let targetCutoff = 2500;
+    let targetGain = 0.14;
+
     if (this.mode === 'playing') {
-      targetCutoff = 900;
+      targetCutoff = 450;
+      targetGain = 0.05;
     } else if (this.mode === 'ui') {
-      targetCutoff = 750;
+      targetCutoff = 600;
+      targetGain = 0.06;
     }
+
+    const timeConstant = this.mode === 'playing' ? 0.2 : 1.5;
 
     try {
       if (typeof this.filterNode.frequency.setTargetAtTime === 'function') {
-        this.filterNode.frequency.setTargetAtTime(targetCutoff, now, 0.3);
+        this.filterNode.frequency.setTargetAtTime(targetCutoff, now, timeConstant);
       } else {
         this.filterNode.frequency.setValueAtTime(targetCutoff, now);
+      }
+
+      if (typeof this.masterGain.gain.setTargetAtTime === 'function') {
+        this.masterGain.gain.setTargetAtTime(targetGain, now, timeConstant);
+      } else {
+        this.masterGain.gain.setValueAtTime(targetGain, now);
       }
     } catch (err) {
       console.warn('[AmbientBgmEngine] Failed to schedule audio parameter transition:', err);
