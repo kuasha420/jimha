@@ -85,6 +85,12 @@ mkdir -p "${ICON_DIR}/128x128/apps" "${ICON_DIR}/32x32/apps"
 
 install -m755 "${SCRIPT_DIR}/jimha" "${BIN_DIR}/jimha"
 install -m644 "${SCRIPT_DIR}/org.purrfect.jimha.desktop" "${APP_DIR}/org.purrfect.jimha.desktop"
+sed -i "s|^Exec=.*|Exec=${BIN_DIR}/jimha|" "${APP_DIR}/org.purrfect.jimha.desktop"
+if [ -w /usr/local/bin ]; then
+    ln -sf "${BIN_DIR}/jimha" /usr/local/bin/jimha 2>/dev/null || true
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo -n ln -sf "${BIN_DIR}/jimha" /usr/local/bin/jimha 2>/dev/null || true
+fi
 install -m644 "${SCRIPT_DIR}/org.purrfect.jimha.metainfo.xml" "${META_DIR}/org.purrfect.jimha.metainfo.xml"
 
 if [ -f "${SCRIPT_DIR}/assets/jimha.svg" ]; then
