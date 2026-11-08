@@ -252,7 +252,24 @@ else
     echo "Notice: Neither makepkg nor docker found. Skipping Arch Linux .pkg.tar.zst packaging."
 fi
 
-# 3. Generate SHA256SUMS.txt
+# 3. Collect Debian and AppImage bundles if available
+if compgen -G "${ROOT_DIR}/target/release/bundle/deb/*.deb" >/dev/null 2>&1; then
+    echo "Collecting Debian bundle..."
+    cp "${ROOT_DIR}"/target/release/bundle/deb/*.deb "${RELEASE_DIR}/"
+elif compgen -G "${ROOT_DIR}/src-tauri/target/release/bundle/deb/*.deb" >/dev/null 2>&1; then
+    echo "Collecting Debian bundle..."
+    cp "${ROOT_DIR}"/src-tauri/target/release/bundle/deb/*.deb "${RELEASE_DIR}/"
+fi
+
+if compgen -G "${ROOT_DIR}/target/release/bundle/appimage/*.AppImage" >/dev/null 2>&1; then
+    echo "Collecting AppImage bundle..."
+    cp "${ROOT_DIR}"/target/release/bundle/appimage/*.AppImage "${RELEASE_DIR}/"
+elif compgen -G "${ROOT_DIR}/src-tauri/target/release/bundle/appimage/*.AppImage" >/dev/null 2>&1; then
+    echo "Collecting AppImage bundle..."
+    cp "${ROOT_DIR}"/src-tauri/target/release/bundle/appimage/*.AppImage "${RELEASE_DIR}/"
+fi
+
+# 4. Generate SHA256SUMS.txt
 echo "Generating SHA256SUMS.txt in ${RELEASE_DIR}..."
 (
     cd "${RELEASE_DIR}"
