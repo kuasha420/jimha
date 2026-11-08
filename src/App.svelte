@@ -737,13 +737,8 @@
 
   function handleParentLockPointerUp(): void {
     if (isTouchExitPressed) {
-      const elapsed = (performance.now() - touchExitStartTime) / 1000;
       isTouchExitPressed = false;
       touchExitHoldProgress = 0;
-      // Quick tap (<0.6s) opens Virtual Switcher
-      if (elapsed < 0.6 && !virtualSwitcherActive) {
-        void openVirtualSwitcher();
-      }
     }
   }
 
@@ -980,7 +975,7 @@
     <button
       type="button"
       class="hud-pill parent-pill"
-      aria-label="Parent Lock (Hold 2.5s to exit, tap to switch)"
+      aria-label="Parent Lock (Hold 2.5s to exit)"
       onpointerdown={handleParentLockPointerDown}
       onpointerup={handleParentLockPointerUp}
       onpointercancel={handleParentLockPointerCancel}
