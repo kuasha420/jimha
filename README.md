@@ -61,22 +61,32 @@ _Smash any button, paint the universe!_ A gentle, toddler-proof sensory wonderla
 <table>
 <tr>
 <td width="50%">
-  <img src="assets/screenshot_2_jimha_crown.png" alt="J is for Jimha!" width="100%" />
-  <p align="center"><b>👑 J is for Queen Jimha!</b><br><i>Spring bounce with royal crown, electric confetti, and fanfare chimes</i></p>
+  <img src="assets/screenshot_1_welcome.png" alt="Sensory Lagoon & Attract Drift" width="100%" />
+  <p align="center"><b>🫧 Sensory Lagoon & Attract Drift</b><br><i>Floating liquid-glass bubbles, starlight dust, and dynamic ambient music box</i></p>
 </td>
 <td width="50%">
-  <img src="assets/screenshot_3_easter_egg.png" alt="Jim Heart Easter Egg" width="100%" />
-  <p align="center"><b>💖 Jim Heart Easter Egg</b><br><i>The cosmic alter ego born from the original voice-dictation spark</i></p>
+  <img src="assets/screenshot_2_jimha_crown.png" alt="J is for Queen Jimha!" width="100%" />
+  <p align="center"><b>👑 J is for Queen Jimha!</b><br><i>Spring bounce with royal crown, golden starbursts, and fanfare chimes</i></p>
 </td>
 </tr>
 <tr>
 <td width="50%">
-  <img src="assets/screenshot_4_supernova.png" alt="Cosmic Supernova" width="100%" />
-  <p align="center"><b>🌟 Cosmic Supernova</b><br><i>Spacebar triggers a dazzling starburst of 120 FPS rainbow particles</i></p>
+  <img src="assets/screenshot_3_easter_egg.png" alt="Jim Heart Easter Egg" width="100%" />
+  <p align="center"><b>💖 Jim Heart Easter Egg</b><br><i>The cosmic alter ego born from the original voice-dictation spark</i></p>
+</td>
+<td width="50%">
+  <img src="assets/screenshot_4_supernova.png" alt="Cosmic Supernova & Harmonic Wonder" width="100%" />
+  <p align="center"><b>🌟 Cosmic Supernova & Harmonic Wonder</b><br><i>Spacebar triggers a dazzling particle cascade and grand pentatonic chord</i></p>
+</td>
+</tr>
+<tr>
+<td width="50%">
+  <img src="assets/screenshot_6_sticker_book.png" alt="The Golden Sticker Book" width="100%" />
+  <p align="center"><b>🏆 The Golden Sticker Book (10 Badges)</b><br><i>Interactive toddler progression tracking all 10 badges with fanfare replay</i></p>
 </td>
 <td width="50%">
   <img src="assets/screenshot_5_exit_hud.png" alt="Toddler-Safe Exit HUD" width="100%" />
-  <p align="center"><b>🛡️ Toddler-Safe Exit HUD</b><br><i>Hold Shift + Esc for 2.5s to exit; forearm slaps and brief taps never quit</i></p>
+  <p align="center"><b>🛡️ Toddler-Safe Radial Exit HUD</b><br><i>Hold Shift + Esc for 2.5s to exit; forearm slaps and brief taps never quit</i></p>
 </td>
 </tr>
 </table>

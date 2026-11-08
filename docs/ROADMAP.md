@@ -49,7 +49,7 @@ _Focus: Evolving with the child from 18 months through preschool._
    ────────────────────────────     ───────────────────────────      ───────────────────────
    • Cause-and-Effect Smashes       • Color & Shape Identification   • Freeform Particle Painting
    • Floating Bubble Lagoon         • Star Constellation Counting    • Musical Chord Sequencing
-   • Confetti & Supernovas          • Sticker Book Discovery (7/7)   • Stamp Placement & Canvas Save
+   • Confetti & Supernovas          • Sticker Book Discovery (10/10) • Stamp Placement & Canvas Save
 ```
 
 ### 1. Explorer Tier (18–24 Months) — _Active Baseline_
@@ -57,6 +57,8 @@ _Focus: Evolving with the child from 18 months through preschool._
 - Primary objective: Cause-and-effect cognitive development.
 - Single-action immediate payoff: giant characters, high-contrast glow, bouncy spring recoil, and soothing pentatonic chimes.
 - Involuntary input protection (elbow and forearm rejection).
+- **Continuous Dynamic Melodic Sequencer**: Starlight Lullaby, Celestial Carousel, and Jimha Wonder pentatonic themes with gentle bass pedal hum and interactive treble lead muting during play.
+- **Polyphonic Harmonic Chords**: $V / \sqrt{N}$ pediatric normalized major chords on Spacebar and Enter.
 
 ### 2. Adventurer Tier (2–3 Years) — _In Development_
 

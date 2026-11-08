@@ -77,6 +77,12 @@ This results in digital clipping, speaker distortion, and dangerously loud acous
    }
    ```
    Rapid key smashing steals the oldest voice rather than adding a fifth voice. The acoustic energy remains bounded, warm, and melodious.
+3. **Dynamic BGM Smoothing & Treble Lead Muting**:
+   During active toddler typing (`elapsed < 3.0s`), the ambient BGM engine completely mutes high treble lead notes (`0.0`), preventing frequency clashing with interactive key chimes. A warm pedal bass note hums softly at `0.02`. Once key interaction ceases, the melody returns via a smooth parabolic quadratic ramp ($0.06 \times \text{progress}^2$) between 3.0s and 6.0s.
+4. **Acoustic Low-Pass Muffling**:
+   During active gameplay (`mode === 'playing'`), the ambient audio filter cutoff drops to **650 Hz** for a warm, muffled acoustic drone. In idle attract mode, it opens to **3000 Hz**, and in UI modal mode, it settles at **750 Hz**.
+5. **Polyphonic Chord Volume Normalization**:
+   When multi-tone chords sound on Space or Enter, per-voice gain is mathematically normalized by $1/\sqrt{N}$ ($V_{\text{per-voice}} = V_{\text{clamped}} / \sqrt{N}$), ensuring a 3-note major chord never overpowers single notes or distorts speakers.
 
 ---
 
