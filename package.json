@@ -26,7 +26,7 @@
     "audit:deps": "pnpm audit --prod",
     "audit:pipeline": "bash scripts/audit_pipeline.sh",
     "verify:diff": "pnpm lint:diff && pnpm test:diff && pnpm clippy",
-    "verify": "pnpm check && pnpm lint && pnpm clippy && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && pnpm test && pnpm test:rust && pnpm build",
+    "verify": "pnpm build && pnpm check && pnpm lint && pnpm clippy && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && pnpm test && pnpm test:rust",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build --no-bundle"
