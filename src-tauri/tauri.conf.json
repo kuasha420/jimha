@@ -16,7 +16,8 @@
         "fullscreen": true,
         "decorations": false,
         "resizable": false,
-        "focus": true
+        "focus": true,
+        "zoomHotkeysEnabled": false
       }
     ],
     "security": {

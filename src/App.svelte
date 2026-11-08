@@ -59,6 +59,7 @@
   let showCelebrationBanner = $state(false);
   let showEscapeParentHint = $state(false);
   let escapeHintTimer: ReturnType<typeof setTimeout> | null = null;
+  let isAdultExiting = $state(false);
 
   $effect(() => {
     if (isStickerBookOpen || virtualSwitcherActive) {
@@ -123,6 +124,7 @@
   }
 
   async function triggerDesktopHandover(targetId?: string) {
+    isAdultExiting = true;
     if (audioManager) {
       audioManager.playKey('ENTER');
     }
@@ -419,18 +421,7 @@
     return true;
   }
 
-  function handleKeyDown(event: KeyboardEvent) {
-    // 0. Pre-flight Gamepad poll: if a physical controller button was pressed, process it first
-    if (gamepadManager) {
-      gamepadManager.poll();
-    }
-
-    // 0b. Drop synthetic keyboard shadow events produced by Steam Desktop controller mapping
-    if (inputShadowFilter.isSyntheticKeyboardShadow(event.key, pressedGamepadButtons)) {
-      event.preventDefault();
-      return;
-    }
-
+  function executeKeyDown(event: KeyboardEvent) {
     pressedKeys.add(event.key);
 
     if (isStickerBookOpen) {
@@ -444,8 +435,6 @@
       isStickerBookOpen = true;
       return;
     }
-
-    preventToddlerDefaults(event);
 
     if (handleAdultAltTabGate(event)) {
       return;
@@ -481,6 +470,31 @@
     if (pixiCanvas) {
       pixiCanvas.triggerKey(event.key);
     }
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    // 0. Pre-flight Gamepad poll: if a physical controller button was pressed, process it first
+    if (gamepadManager) {
+      gamepadManager.poll();
+    }
+
+    preventToddlerDefaults(event);
+
+    const hasGamepad = gamepadManager?.hasConnectedGamepad() ?? false;
+    const handled = inputShadowFilter.filterOrBufferKey(event.key, {
+      hasGamepad,
+      currentlyPressedGamepadButtons: pressedGamepadButtons,
+      onDispatch: () => {
+        executeKeyDown(event);
+      },
+    });
+
+    if (handled) {
+      event.preventDefault();
+      return;
+    }
+
+    executeKeyDown(event);
   }
 
   function handleKeyUp(event: KeyboardEvent) {
@@ -586,6 +600,7 @@
     escRemainingSec = Math.max(0.0, targetSec - elapsed);
     if (escHoldProgress >= 1.0) {
       isEscPressed = false;
+      isAdultExiting = true;
       void callTauri('kiosk_close');
     }
   }
@@ -607,6 +622,7 @@
     gamepadExitRemainingSec = Math.max(0.0, targetSec - elapsed);
     if (gamepadExitHoldProgress >= 1.0) {
       isGamepadExitPressed = false;
+      isAdultExiting = true;
       void callTauri('kiosk_close');
     }
   }
@@ -619,6 +635,7 @@
     touchExitRemainingSec = Math.max(0.0, targetSec - elapsed);
     if (touchExitHoldProgress >= 1.0) {
       isTouchExitPressed = false;
+      isAdultExiting = true;
       void callTauri('kiosk_close');
     }
   }
@@ -700,6 +717,15 @@
     isTouchExitPressed = false;
     touchExitHoldProgress = 0;
     isL3R3Pressed = false;
+
+    // Toddler protection: If focus is stolen unexpectedly while not performing adult exit or switching,
+    // re-claim focus immediately to prevent toddlers from falling out of the kiosk.
+    if (!isAdultExiting && !virtualSwitcherActive) {
+      setTimeout(() => {
+        window.focus();
+        void callTauri('kiosk_refocus');
+      }, 50);
+    }
   }
 
   function handleParentLockPointerDown(): void {
@@ -726,12 +752,24 @@
     touchExitHoldProgress = 0;
   }
 
+  function handleTouchStart(e: TouchEvent): void {
+    // If multi-touch (e.g. 2 fingers pinch or palm), prevent default browser gesture recognition
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchMove(e: TouchEvent): void {
+    // Jimha is a kiosk game with no scrollable content; prevent all touch-scrolling & pinch-zoom
+    e.preventDefault();
+  }
+
   function handleGesture(e: Event): void {
     e.preventDefault();
   }
 
   function handleWheel(e: WheelEvent): void {
-    if (e.ctrlKey) {
+    if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
     }
   }
@@ -772,12 +810,23 @@
 
     animFrameId = requestAnimationFrame(tick);
 
+    window.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
     window.addEventListener('blur', handleBlur);
     window.addEventListener('contextmenu', handleContextMenu, { capture: true });
     window.addEventListener('gesturestart', handleGesture, { passive: false });
     window.addEventListener('gesturechange', handleGesture, { passive: false });
     window.addEventListener('gestureend', handleGesture, { passive: false });
     window.addEventListener('wheel', handleWheel, { passive: false });
+
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        if (window.visualViewport && window.visualViewport.scale !== 1) {
+          document.documentElement.style.zoom = '1.0';
+          document.body.style.zoom = '1.0';
+        }
+      });
+    }
 
     // Initial warm-up on first user interaction
     const unlockAudio = () => {
@@ -804,6 +853,8 @@
     }
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
+    window.removeEventListener('touchstart', handleTouchStart);
+    window.removeEventListener('touchmove', handleTouchMove);
     window.removeEventListener('blur', handleBlur);
     window.removeEventListener('contextmenu', handleContextMenu, {
       capture: true,
@@ -941,6 +992,13 @@
 </main>
 
 <style>
+  :global(*, *::before, *::after) {
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+
   :global(html, body, #app) {
     margin: 0;
     padding: 0;

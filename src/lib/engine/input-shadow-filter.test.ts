@@ -1,7 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InputShadowFilter } from './input-shadow-filter';
 
 describe('InputShadowFilter (Steam Desktop Input Deduplication)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('identifies synthetic Enter as shadow when Gamepad A is pressed', () => {
     const filter = new InputShadowFilter({ windowMs: 150 });
     const t0 = 1000;
@@ -58,8 +66,8 @@ describe('InputShadowFilter (Steam Desktop Input Deduplication)', () => {
     // No gamepad button pressed
     expect(filter.isSyntheticKeyboardShadow('Enter', [], 2000)).toBe(false);
     expect(filter.isSyntheticKeyboardShadow('Escape', [], 2000)).toBe(false);
-    expect(filter.isSyntheticKeyboardShadow('a', [], 2000)).toBe(false);
-    expect(filter.isSyntheticKeyboardShadow('b', [], 2000)).toBe(false);
+    expect(filter.isSyntheticKeyboardShadow('c', [], 2000)).toBe(false);
+    expect(filter.isSyntheticKeyboardShadow('d', [], 2000)).toBe(false);
     expect(filter.isSyntheticKeyboardShadow('ArrowUp', [], 2000)).toBe(false);
   });
 
@@ -83,5 +91,91 @@ describe('InputShadowFilter (Steam Desktop Input Deduplication)', () => {
     filter.clear();
 
     expect(filter.isSyntheticKeyboardShadow('Enter', [], 1010)).toBe(false);
+  });
+
+  describe('Pending Shadow Buffer (Race Condition Prevention)', () => {
+    it('drops synthetic Enter when controller button A lands within 55ms', () => {
+      const filter = new InputShadowFilter({ windowMs: 350, pendingDelayMs: 55 });
+      const dispatchSpy = vi.fn();
+
+      // 1. Enter arrives first from Steam Desktop profile
+      const handled = filter.filterOrBufferKey('Enter', {
+        hasGamepad: true,
+        onDispatch: dispatchSpy,
+        now: 1000,
+      });
+
+      expect(handled).toBe(true);
+      expect(dispatchSpy).not.toHaveBeenCalled();
+
+      // 2. 10ms later, Gamepad API detects button A
+      filter.recordButtonDown('A', 1010);
+
+      // 3. Time advances past the 55ms buffer window
+      vi.advanceTimersByTime(100);
+
+      // 4. Dispatch MUST NOT have been called (synthetic Enter cancelled!)
+      expect(dispatchSpy).not.toHaveBeenCalled();
+    });
+
+    it('drops synthetic Escape when controller button B lands within 55ms', () => {
+      const filter = new InputShadowFilter({ windowMs: 350, pendingDelayMs: 55 });
+      const dispatchSpy = vi.fn();
+
+      const handled = filter.filterOrBufferKey('Escape', {
+        hasGamepad: true,
+        onDispatch: dispatchSpy,
+        now: 1000,
+      });
+
+      expect(handled).toBe(true);
+      filter.recordButtonDown('B', 1015);
+      vi.advanceTimersByTime(100);
+
+      expect(dispatchSpy).not.toHaveBeenCalled();
+    });
+
+    it('dispatches non-shadow keys immediately with 0ms delay even when gamepad is connected', () => {
+      const filter = new InputShadowFilter();
+      const dispatchSpy = vi.fn();
+
+      const handled = filter.filterOrBufferKey('k', {
+        hasGamepad: true,
+        onDispatch: dispatchSpy,
+      });
+
+      expect(handled).toBe(false);
+      // Caller dispatches immediately when handled === false
+    });
+
+    it('dispatches shadow keys after delay if no controller button is pressed', () => {
+      const filter = new InputShadowFilter({ pendingDelayMs: 55 });
+      const dispatchSpy = vi.fn();
+
+      const handled = filter.filterOrBufferKey('Enter', {
+        hasGamepad: true,
+        onDispatch: dispatchSpy,
+      });
+
+      expect(handled).toBe(true);
+      expect(dispatchSpy).not.toHaveBeenCalled();
+
+      // After buffer expires with no controller button, dispatch is executed
+      vi.advanceTimersByTime(60);
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('dispatches shadow keys immediately if no gamepad is connected at all', () => {
+      const filter = new InputShadowFilter();
+      const dispatchSpy = vi.fn();
+
+      const handled = filter.filterOrBufferKey('Enter', {
+        hasGamepad: false,
+        onDispatch: dispatchSpy,
+      });
+
+      expect(handled).toBe(false);
+      expect(dispatchSpy).not.toHaveBeenCalled(); // Handled false -> caller executes immediately
+    });
   });
 });

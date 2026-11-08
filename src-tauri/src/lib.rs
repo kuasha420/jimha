@@ -91,6 +91,15 @@ fn kiosk_close(app: tauri::AppHandle, window: tauri::Window) -> Result<(), Strin
 }
 
 #[tauri::command]
+fn kiosk_refocus(window: tauri::Window) -> Result<(), String> {
+    let _ = window.set_always_on_top(true);
+    let _ = window.set_fullscreen(true);
+    let _ = window.set_focus();
+    let _ = window.unminimize();
+    Ok(())
+}
+
+#[tauri::command]
 fn profile_get(state: tauri::State<'_, Mutex<ProfileStore>>) -> Result<ChildProfile, String> {
     let store = state.lock().map_err(|e| e.to_string())?;
     Ok(store.profile().clone())
@@ -121,6 +130,15 @@ pub fn run() {
     let profile_store = ProfileStore::load_or_default(profile_path);
 
     tauri::Builder::default()
+        .setup(|app| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_fullscreen(true);
+                let _ = window.set_always_on_top(true);
+                let _ = window.set_focus();
+            }
+            Ok(())
+        })
         .manage(Mutex::new(profile_store))
         .manage(NativeAudioEngine::new())
         .invoke_handler(tauri::generate_handler![
@@ -136,6 +154,7 @@ pub fn run() {
             kiosk_handover,
             kiosk_minimize,
             kiosk_close,
+            kiosk_refocus,
             profile_get,
             profile_record_event,
             profile_save_settings

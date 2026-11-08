@@ -306,7 +306,7 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
         let new_rules = rules.join(",");
         let count_str = rules.len().to_string();
 
-        let w1 = Command::new(&kwrite_path)
+        let _ = Command::new(&kwrite_path)
             .args([
                 "--file",
                 "kwinrulesrc",
@@ -316,16 +316,9 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
                 "rules",
                 &new_rules,
             ])
-            .output()
-            .map_err(|e| format!("Failed to write kwinrulesrc rules list: {e}"))?;
-        if !w1.status.success() {
-            return Err(format!(
-                "kwriteconfig6 rules error: {}",
-                String::from_utf8_lossy(&w1.stderr)
-            ));
-        }
+            .output();
 
-        let w2 = Command::new(&kwrite_path)
+        let _ = Command::new(&kwrite_path)
             .args([
                 "--file",
                 "kwinrulesrc",
@@ -335,59 +328,84 @@ pub fn ensure_kwin_shortcut_inhibition() -> Result<bool, String> {
                 "count",
                 &count_str,
             ])
-            .output()
-            .map_err(|e| format!("Failed to write kwinrulesrc count: {e}"))?;
-        if !w2.status.success() {
-            return Err(format!(
-                "kwriteconfig6 count error: {}",
-                String::from_utf8_lossy(&w2.stderr)
-            ));
-        }
+            .output();
+    }
 
-        let props = [
-            ("description", "Jimha Toddler Game Lockdown"),
-            ("wmclass", "jimha"),
-            ("wmclassmatch", "1"),
-            ("types", "1"),
-            ("disableglobalshortcuts", "true"),
-            ("disableglobalshortcutsrule", "2"),
-        ];
+    // KDE Plasma 6 uses 'Order' key in [General]
+    let read_order_res = Command::new(&kread_path)
+        .args([
+            "--file",
+            "kwinrulesrc",
+            "--group",
+            "General",
+            "--key",
+            "Order",
+        ])
+        .output();
 
-        for (k, v) in props {
-            let wp = Command::new(&kwrite_path)
+    if let Ok(order_out) = read_order_res {
+        let current_order = String::from_utf8_lossy(&order_out.stdout)
+            .trim()
+            .to_string();
+        let mut order_list: Vec<String> = current_order
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if !order_list.contains(&"jimha_lockdown".to_string()) {
+            order_list.push("jimha_lockdown".to_string());
+            let new_order = order_list.join(",");
+            let _ = Command::new(&kwrite_path)
                 .args([
                     "--file",
                     "kwinrulesrc",
                     "--group",
-                    "jimha_lockdown",
+                    "General",
                     "--key",
-                    k,
-                    v,
+                    "Order",
+                    &new_order,
                 ])
-                .output()
-                .map_err(|e| format!("Failed to write rule property {k}: {e}"))?;
-            if !wp.status.success() {
-                return Err(format!(
-                    "kwriteconfig6 property {} error: {}",
-                    k,
-                    String::from_utf8_lossy(&wp.stderr)
-                ));
-            }
+                .output();
         }
+    }
 
-        // Notify KWin to reload rules
-        if let Some(qdbus_bin) = find_qdbus() {
-            let q_res = Command::new(qdbus_bin)
-                .args(["org.kde.KWin", "/KWin", "reconfigure"])
-                .output()
-                .map_err(|e| format!("Failed to reconfigure KWin via D-Bus: {e}"))?;
-            if !q_res.status.success() {
-                return Err(format!(
-                    "KWin reconfigure error: {}",
-                    String::from_utf8_lossy(&q_res.stderr)
-                ));
-            }
-        }
+    let props = [
+        ("description", "Jimha Toddler Game Lockdown"),
+        ("wmclass", "jimha"),
+        ("wmclassmatch", "1"),
+        ("types", "1"),
+        ("fullscreen", "true"),
+        ("fullscreenrule", "2"),
+        ("keepabove", "true"),
+        ("keepaboverule", "2"),
+        ("focusstealing", "0"),
+        ("focusstealingrule", "2"),
+        ("focussmuggling", "true"),
+        ("focussmugglingrule", "2"),
+        ("disableglobalshortcuts", "true"),
+        ("disableglobalshortcutsrule", "2"),
+    ];
+
+    for (k, v) in props {
+        let _ = Command::new(&kwrite_path)
+            .args([
+                "--file",
+                "kwinrulesrc",
+                "--group",
+                "jimha_lockdown",
+                "--key",
+                k,
+                v,
+            ])
+            .output();
+    }
+
+    // Notify KWin to reload rules
+    if let Some(qdbus_bin) = find_qdbus() {
+        let _ = Command::new(qdbus_bin)
+            .args(["org.kde.KWin", "/KWin", "reconfigure"])
+            .output();
     }
 
     Ok(true)

@@ -398,6 +398,21 @@ export class GamepadManager {
     return this.previousButtonStates.has(gamepadIndex);
   }
 
+  public hasConnectedGamepad(): boolean {
+    if (this.previousButtonStates.size > 0) return true;
+    if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
+      try {
+        const pads = navigator.getGamepads();
+        for (let i = 0; i < pads.length; i++) {
+          if (pads[i] && pads[i]!.connected) return true;
+        }
+      } catch {
+        // Ignore
+      }
+    }
+    return false;
+  }
+
   public getConnectedCount(): number {
     return this.previousButtonStates.size;
   }
