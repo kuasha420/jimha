@@ -86,9 +86,9 @@ Jim Heart is Queen Jimha's cosmic alter ego. When Jimha falls asleep after an af
 
 ---
 
-## Chapter 3: The 7 Badges of Honor
+## Chapter 3: The 10 Badges of Honor
 
-Inside the **Sticker Book** (`src/lib/components/StickerBook.svelte`), seven golden Badges of Honor commemorate an explorer's journey through the cosmos:
+Inside the **Sticker Book** (`src/lib/components/StickerBook.svelte`), ten golden Badges of Honor commemorate an explorer's journey through the cosmos:
 
 ```
    [ ✨ FIRST SPARK ]        [ 🫧 BUBBLE MASTER ]        [ 👑 QUEEN JIMHA ]
@@ -97,8 +97,11 @@ Inside the **Sticker Book** (`src/lib/components/StickerBook.svelte`), seven gol
    [ ❤️ JIM HEART ]          [ ⭐ STAR COUNTER ]         [ 🌈 RAINBOW EXPLORER ]
    Awakened the alter ego    Counted constellations      Mastered every color
 
-                            [ 🎮 KONAMI CHAMPION ]
-                            The sacred arcade sequence
+   [ 🎮 KONAMI CHAMPION ]    [ 🎵 MELODY MAESTRO ]       [ 🎹 HARMONIC WONDER ]
+   Sacred arcade sequence    Played 50 musical notes     Sounded a grand chord
+
+                             [ 🌙 LULLABY LISTENER ]
+                             Rested in ambient wonder
 ```
 
 ### 1. `first_spark` — First Spark ✨
@@ -144,6 +147,24 @@ Inside the **Sticker Book** (`src/lib/components/StickerBook.svelte`), seven gol
   $$\uparrow \quad \uparrow \quad \downarrow \quad \downarrow \quad \leftarrow \quad \rightarrow \quad \leftarrow \quad \rightarrow \quad \text{B} \quad \text{A}$$
   The application enters Rainbow God Mode: a continuous multi-layered cascade of 120 FPS fireworks, supernovas, and celestial chimes.
 - **Trigger**: Inputting the full 10-step Konami sequence.
+
+### 8. `melody_maestro` — Melody Maestro 🎵
+
+- **Title**: Maestro of the Celestial Scale
+- **Lore**: A diligent explorer who has sounded 50 notes across the starlight keys, weaving their own personal tapestry into the cosmos.
+- **Trigger**: Playing 50 musical notes or exploring celestial melodies.
+
+### 9. `chord_harmonizer` — Harmonic Wonder 🎹
+
+- **Title**: Harmonizer of the Cosmos
+- **Lore**: Pressing Space or Enter sounds a rich harmonic chord with deep sub-bass resonance, bringing melodic peace to the galaxy.
+- **Trigger**: Pressing Space or Enter to sound a grand harmonic chord.
+
+### 10. `lullaby_listener` — Lullaby Listener 🌙
+
+- **Title**: Dreamer in the Starlight
+- **Lore**: Rested quietly as the celestial music box played its starlight lullaby uninterrupted for 20 seconds, listening to the gentle acoustic drone.
+- **Trigger**: Resting quietly to listen to the ambient lullaby.
 
 ---
 

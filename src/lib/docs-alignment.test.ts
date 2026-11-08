@@ -26,9 +26,9 @@ describe('Documentation & Code Alignment Anti-Drift Contract', () => {
     expect(invariants).toContain('Attract');
   });
 
-  it('asserts docs/LORE.md documents all 7 authoritative sticker badges', () => {
+  it('asserts docs/LORE.md documents all 10 authoritative sticker badges', () => {
     const lore = fs.readFileSync(lorePath, 'utf-8');
-    expect(STICKERS).toHaveLength(7);
+    expect(STICKERS).toHaveLength(10);
     for (const badge of STICKERS) {
       expect(lore).toContain(badge.id);
       expect(lore).toContain(badge.title);

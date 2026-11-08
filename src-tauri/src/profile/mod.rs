@@ -154,9 +154,32 @@ impl ProfileStore {
             try_unlock("konami_champion");
         }
 
+        // 4. Melody maestro (50+ key presses or melody event)
+        if self.profile.total_key_presses >= 50 || event_type == "melody" {
+            try_unlock("melody_maestro");
+        }
+
+        // 5. Chord harmonizer (chord event, SPACE or ENTER)
+        if event_type == "chord" || key == Some("SPACE") || key == Some("ENTER") {
+            try_unlock("chord_harmonizer");
+        }
+
+        // 6. Lullaby listener (lullaby event or LULLABY key)
+        if event_type == "lullaby" || key == Some("LULLABY") {
+            try_unlock("lullaby_listener");
+        }
+
         // Key-based achievements
         if let Some(k) = key {
             let upper = k.trim().to_uppercase();
+
+            if upper == "SPACE" || upper == "ENTER" || k == " " {
+                try_unlock("chord_harmonizer");
+            }
+
+            if upper == "LULLABY" {
+                try_unlock("lullaby_listener");
+            }
 
             // Queen Jimha ('J')
             if upper == "J" {
@@ -343,6 +366,47 @@ mod tests {
             .profile()
             .unlocked_stickers
             .contains(&"konami_champion".to_string()));
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_musical_achievements() {
+        let path = temp_profile_path("musical_test");
+        let _ = fs::remove_file(&path);
+        let mut store = ProfileStore::load_or_default(path.clone());
+
+        // 1. Chord harmonizer via SPACE
+        let unlocked_chord = store.record_event("key_press", Some("SPACE")).unwrap();
+        assert_eq!(unlocked_chord, Some("first_spark".to_string()));
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"chord_harmonizer".to_string()));
+
+        // 2. Lullaby listener via lullaby event
+        store.record_event("lullaby", Some("LULLABY")).unwrap();
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"lullaby_listener".to_string()));
+
+        // 3. Melody maestro via 50 key presses
+        for _ in 0..48 {
+            let _ = store.record_event("key_press", Some("a")).unwrap();
+        }
+        // At 49 key presses (1 initial SPACE + 48 = 49)
+        assert!(!store
+            .profile()
+            .unlocked_stickers
+            .contains(&"melody_maestro".to_string()));
+
+        // 50th key press unlocks melody_maestro
+        store.record_event("key_press", Some("b")).unwrap();
+        assert!(store
+            .profile()
+            .unlocked_stickers
+            .contains(&"melody_maestro".to_string()));
 
         let _ = fs::remove_file(&path);
     }

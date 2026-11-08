@@ -147,7 +147,7 @@ Children love tapping everything they see. If an interface contains buttons that
 ### The Engineering Solution
 
 1. **Deliberate Gesture Gate**:
-   Opening the **Sticker Book** requires either:
+   Opening the **Sticker Book** (which houses 10 collectible achievement badges across sensory, secret, and musical categories) requires either:
    - A sustained **450-millisecond press-and-hold** on the sticker book icon, or
    - A deliberate **upward swipe gesture** of $\ge 80$ pixels from the bottom edge.
      Accidental brief taps simply produce a playful wiggle animation without opening the sheet.

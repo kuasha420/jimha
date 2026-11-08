@@ -258,7 +258,7 @@ In compliance with **PSL-INV-001** and **PSL-INV-002**, Jimha enforces a multi-t
 - **Evergreen-by-Default Dependency Contract (`src/lib/evergreen-deps.test.ts`)**:
   - Automatically verifies `package.json` against semantic versioning requirements, ensuring major components (Tauri v2, Pixi.js v8, Svelte 5, TypeScript 6, Vite 8, Vitest 5, ESLint 10) remain evergreen without deprecated APIs or syntax.
 - **Anti-Drift Documentation Contract (`src/lib/docs-alignment.test.ts`)**:
-  - Automatically validates documentation files (`README.md`, `docs/DAD_MODE_INVARIANTS.md`, `docs/LORE.md`, `docs/ARCHITECTURE.md`) against concrete runtime values (e.g. 25-bubble lagoon capacity, 7 stickers, 11 pentatonic frequencies, Self-Contained Product Invariant), ensuring documentation never drifts from code.
+  - Automatically validates documentation files (`README.md`, `docs/DAD_MODE_INVARIANTS.md`, `docs/LORE.md`, `docs/ARCHITECTURE.md`) against concrete runtime values (e.g. 25-bubble lagoon capacity, 10 stickers, 11 pentatonic frequencies, Self-Contained Product Invariant), ensuring documentation never drifts from code.
 
 ---
 

@@ -82,6 +82,8 @@
   let virtualWindows = $state<WindowItem[]>([]);
   let virtualIndex = $state(0);
   let switcherLastActionTime = 0;
+  let lastInputTime = performance.now();
+  let lullabyTriggeredInIdleCycle = false;
 
   let animFrameId: number | null = null;
 
@@ -172,6 +174,8 @@
 
   function handleBubblePop() {
     touchCount += 1;
+    lastInputTime = performance.now();
+    lullabyTriggeredInIdleCycle = false;
     void recordProgressionEvent('bubble_pop');
     if (audioManager) {
       audioManager.setAudioMode('playing');
@@ -434,7 +438,10 @@
     }
 
     // 5. Normal Game Audio, Pixi Canvas and Child Progression Dispatch
-    void recordProgressionEvent('key_press', event.key);
+    lastInputTime = performance.now();
+    lullabyTriggeredInIdleCycle = false;
+    const keyName = event.key === ' ' ? 'SPACE' : event.key;
+    void recordProgressionEvent('key_press', keyName);
 
     if (audioManager) {
       const selection = audioManager.playKey(event.key);
@@ -485,6 +492,8 @@
     }
 
     // Gamepad button audio, visual and progression dispatch
+    lastInputTime = performance.now();
+    lullabyTriggeredInIdleCycle = false;
     void recordProgressionEvent('key_press', event.buttonId);
 
     if (audioManager) {
@@ -534,6 +543,12 @@
     // Virtual Switcher idle timeout (15s)
     if (virtualSwitcherActive && now - switcherLastActionTime > 15000) {
       virtualSwitcherActive = false;
+    }
+
+    // Check lullaby listener achievement (20s uninterrupted idle with BGM)
+    if (!lullabyTriggeredInIdleCycle && now - lastInputTime >= 20000) {
+      lullabyTriggeredInIdleCycle = true;
+      void recordProgressionEvent('lullaby', 'LULLABY');
     }
 
     rekka.checkDecay(Date.now() / 1000);

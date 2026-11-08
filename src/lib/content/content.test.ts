@@ -109,8 +109,8 @@ describe('Instruments & Timbre DSP Synthesis', () => {
 });
 
 describe('Stickers Content Pack', () => {
-  it('defines all 7 achievement badges', () => {
-    expect(STICKERS).toHaveLength(7);
+  it('defines all 10 achievement badges', () => {
+    expect(STICKERS).toHaveLength(10);
     const ids = STICKERS.map((s) => s.id);
     expect(ids).toEqual([
       'first_spark',
@@ -120,6 +120,9 @@ describe('Stickers Content Pack', () => {
       'star_counter',
       'rainbow_explorer',
       'konami_champion',
+      'melody_maestro',
+      'chord_harmonizer',
+      'lullaby_listener',
     ]);
   });
 

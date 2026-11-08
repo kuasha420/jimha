@@ -133,18 +133,29 @@ export class MelodySequencer {
   }
 
   public calculateVolume(isBass: boolean): number {
-    const elapsed = Date.now() - this.lastInputTimestamp;
-    const isDucked = elapsed < 3500;
-
     if (this.mode === 'ui') {
-      return isBass ? 0.04 : 0.02;
+      return isBass ? 0.03 : 0.015;
     }
 
-    if (isDucked) {
-      return isBass ? 0.05 : 0.03;
+    const elapsed =
+      this.lastInputTimestamp === 0
+        ? Number.POSITIVE_INFINITY
+        : Date.now() - this.lastInputTimestamp;
+
+    if (elapsed < 3000) {
+      return isBass ? 0.02 : 0.0;
     }
 
-    return isBass ? 0.08 : 0.12;
+    if (elapsed < 6000) {
+      const progress = (elapsed - 3000) / 3000;
+      if (!isBass) {
+        const ramp = progress * progress;
+        return 0.06 * ramp;
+      }
+      return 0.02 + (0.04 - 0.02) * progress;
+    }
+
+    return isBass ? 0.04 : 0.06;
   }
 
   public start(): void {
@@ -179,16 +190,24 @@ export class MelodySequencer {
   private dispatchStep(step: MelodicStep): void {
     if (step.lead !== null) {
       const leadVol = this.calculateVolume(false);
-      this.emitNote(step.lead, leadVol);
+      if (leadVol > 0.001) {
+        this.emitNote(step.lead, leadVol);
+      }
     }
 
     if (step.bass !== null) {
       const bassVol = this.calculateVolume(true);
-      this.emitNote(step.bass, bassVol);
+      if (bassVol > 0.001) {
+        this.emitNote(step.bass, bassVol);
+      }
     }
   }
 
   private emitNote(index: number, volume: number): void {
+    if (volume <= 0.001) {
+      return;
+    }
+
     // 1. Native PipeWire Audio Dispatch
     invokeNativeAudioCommand('audio_play_chime_index', { index, volume });
 

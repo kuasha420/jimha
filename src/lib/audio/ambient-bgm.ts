@@ -39,7 +39,7 @@ export class AmbientBgmEngine {
     if (!this.filterNode && ctx.createBiquadFilter) {
       this.filterNode = ctx.createBiquadFilter();
       this.filterNode.type = 'lowpass';
-      this.filterNode.frequency.setValueAtTime(3200, ctx.currentTime);
+      this.filterNode.frequency.setValueAtTime(3000, ctx.currentTime);
     }
 
     if (!this.masterGain && ctx.createGain) {
@@ -96,11 +96,16 @@ export class AmbientBgmEngine {
   private applyModeParameters(): void {
     if (!this.ctx || !this.filterNode) return;
     const now = this.ctx.currentTime;
-    const targetCutoff = this.mode === 'ui' ? 750 : 3500;
+    let targetCutoff = 3000;
+    if (this.mode === 'playing') {
+      targetCutoff = 650;
+    } else if (this.mode === 'ui') {
+      targetCutoff = 750;
+    }
 
     try {
       if (typeof this.filterNode.frequency.setTargetAtTime === 'function') {
-        this.filterNode.frequency.setTargetAtTime(targetCutoff, now, 0.25);
+        this.filterNode.frequency.setTargetAtTime(targetCutoff, now, 0.3);
       } else {
         this.filterNode.frequency.setValueAtTime(targetCutoff, now);
       }

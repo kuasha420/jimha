@@ -138,7 +138,7 @@ Children do not interact with software like adults. An 18-month-old toddler expl
 
 - **Exit Game**: Hold **`Shift + Escape`** continuously for 2.5 seconds (radial countdown HUD displays progress).
 - **Parent Virtual Switcher**: Press **`Up, Up`** rapidly or tap the top-right indicator to open the KWin D-Bus window switcher and seamlessly hand over focus without closing Jimha.
-- **Parent Gate**: 450ms long-press or upward swipe opens the **Sticker Book** to inspect unlocked badges.
+- **Parent Gate**: 450ms long-press or upward swipe opens the **Sticker Book** to inspect unlocked badges (10 total collectible milestones across sensory, secret, and musical categories).
 
 ### Arcade Cheats
 

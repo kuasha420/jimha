@@ -65,6 +65,30 @@ export const STICKERS: StickerBadge[] = [
     hint: '↑ ↑ ↓ ↓ ← → ← → B A',
     accentColor: '#7C4DFF',
   },
+  {
+    id: 'melody_maestro',
+    title: 'Melody Maestro 🎵',
+    emoji: '🎵',
+    description: 'Played 50 musical notes and explored the celestial melodies!',
+    hint: 'Play 50 musical notes',
+    accentColor: '#00E5FF',
+  },
+  {
+    id: 'chord_harmonizer',
+    title: 'Harmonic Wonder 🎹',
+    emoji: '🎹',
+    description: 'Played a grand harmonic chord using Space or Enter!',
+    hint: 'Press Space or Enter to sound a chord',
+    accentColor: '#FFD600',
+  },
+  {
+    id: 'lullaby_listener',
+    title: 'Lullaby Listener 🌙',
+    emoji: '🌙',
+    description: 'Rested quietly as the celestial music box played its starlight lullaby.',
+    hint: 'Listen quietly to the ambient lullaby',
+    accentColor: '#7C4DFF',
+  },
 ];
 
 export function getStickerById(id: string): StickerBadge | undefined {
