@@ -38,3 +38,6 @@ pkg/
 data/
 *.db
 
+# Release artifacts
+release_artifacts/
+

@@ -170,7 +170,7 @@ _Focus: Cleanroom verification, hermetic builds, distribution packaging, and sub
 
 ### Distribution Targets
 
-- [x] **Arch Linux AUR / Local `makepkg`**: Production-tested `PKGBUILD` compiling native binary with desktop and metainfo integration.
+- [x] **Arch Linux AUR / Local `makepkg`**: Production-tested `PKGBUILD` and native `.pkg.tar.zst` release packaging with desktop and metainfo integration.
 - [x] **Flatpak (`org.purrfect.jimha`)**: Complete Flatpak manifest in `packaging/flatpak/org.purrfect.jimha.yml` using modern GNOME runtime.
-- [ ] **Steam Deck Non-Steam One-Click Installer**: Automated script adding Jimha directly to Steam Deck Gaming Mode library with official hero artwork.
-- [ ] **AppImage**: Standalone cross-distribution portable binary for off-grid USB drive distribution.
+- [x] **Steam Deck Sovereign User-Space Packager**: Idempotent tarball bundle (`install.sh`, `uninstall.sh`, icons, desktop launcher, and 3-step Steam Gaming Mode setup in `README-STEAMDECK.md`).
+- [x] **Automated CI/CD & GitHub Actions Release Pipeline**: `.github/workflows/ci.yml` (push/PR verification) and `.github/workflows/release.yml` (multi-target release packaging: Steam Deck tarball, Arch package, AppImage, Deb, SHA256SUMS).

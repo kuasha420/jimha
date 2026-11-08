@@ -197,7 +197,47 @@ To add Jimha as a handheld non-Steam game on the Steam Deck:
 
 ---
 
-## 6. Packaging Verification Checklist
+## 6. Multi-Target Release Packaging & CI/CD Automation
+
+Jimha includes automated multi-target packaging and continuous verification via GitHub Actions and local release tooling.
+
+### Idempotent Local & CI Packager (`scripts/package_release.sh`)
+
+The release packager builds sovereign distribution bundles into `release_artifacts/`:
+
+```bash
+# Package release using active git short-sha or custom build id
+bash scripts/package_release.sh [BUILD_ID]
+```
+
+#### Generated Artifacts:
+
+1. **Steam Deck Sovereign User-Space Bundle**:
+   - `release_artifacts/jimha-v<version>-steamdeck-linux-x86_64.tar.gz`
+   - Stripped executable binary + standalone `install.sh` and `uninstall.sh`.
+   - Immutable root safe: installs to `~/.local/bin` and `~/.local/share` without `sudo`.
+   - Includes `README-STEAMDECK.md` with 3-step Steam Gaming Mode setup and launch options.
+2. **Arch Linux Native Package**:
+   - `release_artifacts/jimha-<arch_pkgver>-1-x86_64.pkg.tar.zst`
+   - Built via local `makepkg` (or containerized `archlinux:base-devel` when running on non-Arch hosts).
+3. **Cryptographic Checksums**:
+   - `release_artifacts/SHA256SUMS.txt` computed deterministically across all output artifacts.
+
+### GitHub Actions Workflows
+
+- **`.github/workflows/ci.yml`**:
+  - Triggers on `push` and `pull_request` targeting `main`.
+  - Runs full verification gate: `pnpm verify` (Svelte diagnostics, ESLint 10, Cargo Clippy `-D warnings`, Cargo formatting check, 86 Vitest unit tests, 22 Cargo backend tests, and Vite production bundle).
+- **`.github/workflows/release.yml`**:
+  - Triggers automatically on tag push (`v*`).
+  - Runs CI verification gate.
+  - Generates `.deb` and `.AppImage` via `pnpm tauri build`.
+  - Executes `scripts/package_release.sh` to package Steam Deck bundle, Arch package, and `SHA256SUMS.txt`.
+  - Distributes release assets and release notes to GitHub Releases via `softprops/action-gh-release@v2` (flagging pre-releases if tag contains hyphens).
+
+---
+
+## 7. Packaging Verification Checklist
 
 Prior to publishing any release archive or package build, verify:
 
