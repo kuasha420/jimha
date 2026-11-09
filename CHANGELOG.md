@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0-a62efdb] - 2026-11-09
 
-### 🚀 Consolidated Milestone Prerelease (Comparison: `v2.0.0-22f2060` → `v2.0.0-a62efdb`)
+### 🚀 Consolidated Milestone Prerelease
 
-This consolidated prerelease rolls up all stabilization, handheld optimizations, kiosk hardening, and the complete sovereign audio engine revamp since the initial `v2.0.0-22f2060` milestone build.
+This release delivers complete sovereign in-process audio, handheld controller optimization, kiosk containment, and toddler-proof input filtering.
 
 ---
 
@@ -85,15 +85,3 @@ This consolidated prerelease rolls up all stabilization, handheld optimizations,
   - Steam Deck zero-sudo user-space tarball (`.tar.gz`)
   - Debian package (`.deb`)
   - Cryptographic checksums (`SHA256SUMS.txt`)
-
----
-
-## [2.0.0-22f2060] - 2026-11-08
-
-### Initial v2.0.0 Milestone Prerelease
-
-- Complete rewrite from Python prototype to Tauri v2, Svelte 5, Pixi.js v8, and Rust.
-- 120 FPS WebGPU liquid-glass bubble lagoon with 25-bubble ceiling.
-- Dynamic pentatonic consonance across 11-tone scale (C4–C6).
-- 10 Badges of Honor (Sticker Book) progression system.
-- The 7 Dad-Mode Invariants (Exit Fortress, Hearing Safety, Bubble Ceiling, Sensory Cadence, Attract Drift, Gesture Gate, Pentatonic Tuning).
