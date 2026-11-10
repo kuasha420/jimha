@@ -1,10 +1,12 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 
 pub mod audio;
+pub mod gamepad;
 pub mod kiosk;
 pub mod profile;
 
 use audio::NativeAudioEngine;
+use gamepad::{gamepad_get_state, gamepad_reset_state, NativeGamepadEngine};
 use kiosk::WindowEntry;
 use profile::{ChildProfile, ProfileSettings, ProfileStore};
 use std::sync::Mutex;
@@ -146,6 +148,8 @@ pub fn run() {
                 let _ = window.set_always_on_top(true);
                 let _ = window.set_focus();
             }
+            let gamepad_engine = NativeGamepadEngine::start(app.handle().clone());
+            app.manage(gamepad_engine);
             Ok(())
         })
         .manage(Mutex::new(profile_store))
@@ -159,6 +163,8 @@ pub fn run() {
             audio_play_chord,
             audio_play_bgm_drop,
             audio_set_instrument,
+            gamepad_get_state,
+            gamepad_reset_state,
             kiosk_inhibit_shortcuts,
             kiosk_query_windows,
             kiosk_handover,

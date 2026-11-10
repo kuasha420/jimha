@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { GamepadManager, type GamepadLike } from './gamepad';
+import { GamepadManager, isTauriEnvironment, type GamepadLike } from './gamepad';
 import { RekkaBuffer, KONAMI_SEQUENCE } from './rekka';
 
 describe('GamepadManager Unit & Contract Tests', () => {
@@ -179,5 +179,133 @@ describe('GamepadManager Unit & Contract Tests', () => {
     expect(gm.isConnected(0)).toBe(false);
     expect(gm.getConnectedCount()).toBe(0);
     expect(onDisconnected).toHaveBeenCalledWith(0);
+  });
+
+  describe('Runtime Isolation Boundary & Native IPC Contract', () => {
+    it('verifies zero calls to navigator.getGamepads and window gamepad events in Tauri mode', () => {
+      const originalInternals = (window as unknown as { __TAURI_INTERNALS__?: unknown })
+        .__TAURI_INTERNALS__;
+      (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {};
+
+      expect(isTauriEnvironment()).toBe(true);
+
+      const getGamepadsSpy = vi.fn();
+      Object.defineProperty(navigator, 'getGamepads', {
+        value: getGamepadsSpy,
+        configurable: true,
+        writable: true,
+      });
+
+      const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+
+      const onConnected = vi.fn();
+      const onButtonDown = vi.fn();
+      const gm = new GamepadManager({ onConnected, onButtonDown });
+
+      // In Tauri mode: attach, poll, hasConnectedGamepad
+      gm.attach(window);
+      gm.poll();
+      expect(gm.hasConnectedGamepad()).toBe(false);
+
+      // Verify zero browser Gamepad API calls
+      expect(getGamepadsSpy).not.toHaveBeenCalled();
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'gamepadconnected',
+        expect.any(Function)
+      );
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'gamepaddisconnected',
+        expect.any(Function)
+      );
+
+      gm.detach();
+
+      // Cleanup
+      if (originalInternals !== undefined) {
+        (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ =
+          originalInternals;
+      } else {
+        delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+      }
+      addEventListenerSpy.mockRestore();
+    });
+
+    it('processes push events and snapshot sync with anti-mashing and resetState', () => {
+      const onConnected = vi.fn();
+      const onDisconnected = vi.fn();
+      const onButtonDown = vi.fn();
+      const onButtonUp = vi.fn();
+      const rekka = new RekkaBuffer(1.0);
+
+      const gm = new GamepadManager({
+        onConnected,
+        onDisconnected,
+        onButtonDown,
+        onButtonUp,
+        rekkaBuffer: rekka,
+      });
+
+      // 1. Initial snapshot sync with connected controller
+      gm.syncNativeSnapshot({
+        connected_count: 1,
+        pressed_buttons: ['A'],
+      });
+
+      expect(gm.getConnectedCount()).toBe(1);
+      expect(onConnected).toHaveBeenCalledWith(0, 'Native Host Controller');
+      expect(gm.isButtonPressed(0, 'A')).toBe(true);
+      expect(onButtonDown).toHaveBeenCalledWith(
+        expect.objectContaining({ buttonId: 'A', pressed: true })
+      );
+      expect(rekka.getTokens()).toEqual(['A']);
+
+      // 2. Incoming edge event for START
+      gm.handleNativeEvent({
+        button: 'START',
+        pressed: true,
+        value: 1.0,
+        connected_count: 1,
+      });
+      expect(gm.isButtonPressed(0, 'START')).toBe(true);
+      expect(onButtonDown).toHaveBeenCalledTimes(2);
+
+      // 3. Button release for START
+      gm.handleNativeEvent({
+        button: 'START',
+        pressed: false,
+        value: 0.0,
+        connected_count: 1,
+      });
+      expect(gm.isButtonPressed(0, 'START')).toBe(false);
+      expect(onButtonUp).toHaveBeenCalledWith(
+        expect.objectContaining({ buttonId: 'START', pressed: false })
+      );
+
+      // 4. Multiple controllers connection event
+      gm.handleNativeEvent({
+        button: 'CONNECT',
+        pressed: false,
+        value: 0.0,
+        connected_count: 2,
+      });
+      expect(gm.getConnectedCount()).toBe(2);
+
+      // 5. Emergency blur/disconnect resetState clears all held buttons
+      gm.resetState();
+      expect(gm.isButtonPressed(0, 'A')).toBe(false);
+      expect(onButtonUp).toHaveBeenCalledWith(
+        expect.objectContaining({ buttonId: 'A', pressed: false })
+      );
+
+      // 6. Complete disconnect event
+      gm.handleNativeEvent({
+        button: 'DISCONNECT',
+        pressed: false,
+        value: 0.0,
+        connected_count: 0,
+      });
+      expect(gm.getConnectedCount()).toBe(0);
+      expect(onDisconnected).toHaveBeenCalledWith(0);
+    });
   });
 });

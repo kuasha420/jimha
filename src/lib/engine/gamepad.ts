@@ -134,6 +134,22 @@ export interface GamepadButtonEvent {
   meta: GamepadButtonInfo;
 }
 
+export function isTauriEnvironment(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
+export interface GamepadEventPayload {
+  button: string;
+  pressed: boolean;
+  value: number;
+  connected_count: number;
+}
+
+export interface GamepadStateSnapshot {
+  connected_count: number;
+  pressed_buttons: string[];
+}
+
 export interface GamepadButtonLike {
   pressed: boolean;
   value: number;
@@ -164,6 +180,9 @@ export class GamepadManager {
     number,
     { up: boolean; down: boolean; left: boolean; right: boolean }
   > = new Map();
+  private nativeConnectedCount: number = 0;
+  private nativePressedButtons: Set<GamepadButtonId> = new Set();
+  private unlistenNative: (() => void) | null = null;
   private rekkaBuffer: RekkaBuffer | null = null;
   private isPolling: boolean = false;
   private animFrameId: number | null = null;
@@ -183,6 +202,10 @@ export class GamepadManager {
   }
 
   public poll(gamepadsSnapshot?: (GamepadLike | null)[]): void {
+    if (isTauriEnvironment() && !gamepadsSnapshot) {
+      return;
+    }
+
     let gamepads: (GamepadLike | null)[] = [];
     if (gamepadsSnapshot) {
       gamepads = gamepadsSnapshot;
@@ -357,6 +380,33 @@ export class GamepadManager {
     this.detach();
     this.attachedWindow = win;
 
+    if (isTauriEnvironment()) {
+      void import('@tauri-apps/api/core')
+        .then(({ invoke }) => {
+          invoke<GamepadStateSnapshot>('gamepad_get_state')
+            .then((snapshot) => {
+              if (snapshot) {
+                this.syncNativeSnapshot(snapshot);
+              }
+            })
+            .catch(() => {});
+        })
+        .catch(() => {});
+
+      void import('@tauri-apps/api/event')
+        .then(({ listen }) => {
+          listen<GamepadEventPayload>('jimha://gamepad-event', (event) => {
+            this.handleNativeEvent(event.payload);
+          })
+            .then((unlistenFn) => {
+              this.unlistenNative = unlistenFn;
+            })
+            .catch(() => {});
+        })
+        .catch(() => {});
+      return;
+    }
+
     this.boundConnected = (e: Event) => {
       const gpEvent = e as unknown as { gamepad: GamepadLike };
       if (gpEvent && gpEvent.gamepad) {
@@ -380,6 +430,10 @@ export class GamepadManager {
   }
 
   public detach(): void {
+    if (this.unlistenNative) {
+      this.unlistenNative();
+      this.unlistenNative = null;
+    }
     this.stop();
     if (this.attachedWindow) {
       if (this.boundConnected) {
@@ -392,13 +446,109 @@ export class GamepadManager {
     }
     this.previousButtonStates.clear();
     this.previousAxisStates.clear();
+    this.nativePressedButtons.clear();
+    this.nativeConnectedCount = 0;
+  }
+
+  public handleNativeEvent(payload: GamepadEventPayload): void {
+    const prevCount = this.nativeConnectedCount;
+    this.nativeConnectedCount = payload.connected_count;
+
+    if (payload.button === 'CONNECT') {
+      this.options.onConnected?.(0, 'Native Host Controller');
+      return;
+    }
+
+    if (payload.button === 'DISCONNECT') {
+      if (payload.connected_count === 0 && prevCount > 0) {
+        this.options.onDisconnected?.(0);
+      }
+      return;
+    }
+
+    const buttonId = payload.button as GamepadButtonId;
+    const meta = GAMEPAD_BUTTON_META[buttonId];
+    if (!meta) return;
+
+    if (payload.pressed) {
+      this.nativePressedButtons.add(buttonId);
+      if (meta.isRekkaToken && meta.rekkaToken && this.rekkaBuffer) {
+        this.rekkaBuffer.add(meta.rekkaToken);
+      }
+      this.options.onButtonDown?.({
+        gamepadIndex: 0,
+        gamepadId: 'Native Host Controller',
+        buttonId,
+        rawIndex: -1,
+        value: payload.value,
+        pressed: true,
+        meta,
+      });
+    } else {
+      this.nativePressedButtons.delete(buttonId);
+      this.options.onButtonUp?.({
+        gamepadIndex: 0,
+        gamepadId: 'Native Host Controller',
+        buttonId,
+        rawIndex: -1,
+        value: payload.value,
+        pressed: false,
+        meta,
+      });
+    }
+  }
+
+  public syncNativeSnapshot(snapshot: GamepadStateSnapshot): void {
+    const prevCount = this.nativeConnectedCount;
+    this.nativeConnectedCount = snapshot.connected_count;
+    if (prevCount === 0 && snapshot.connected_count > 0) {
+      this.options.onConnected?.(0, 'Native Host Controller');
+    }
+
+    for (const btnStr of snapshot.pressed_buttons) {
+      const buttonId = btnStr as GamepadButtonId;
+      if (!this.nativePressedButtons.has(buttonId)) {
+        this.handleNativeEvent({
+          button: btnStr,
+          pressed: true,
+          value: 1.0,
+          connected_count: snapshot.connected_count,
+        });
+      }
+    }
+  }
+
+  public resetState(): void {
+    for (const buttonId of this.nativePressedButtons) {
+      const meta = GAMEPAD_BUTTON_META[buttonId];
+      if (meta) {
+        this.options.onButtonUp?.({
+          gamepadIndex: 0,
+          gamepadId: 'Native Host Controller',
+          buttonId,
+          rawIndex: -1,
+          value: 0.0,
+          pressed: false,
+          meta,
+        });
+      }
+    }
+    this.nativePressedButtons.clear();
+    this.previousButtonStates.clear();
+    this.previousAxisStates.clear();
   }
 
   public isConnected(gamepadIndex: number = 0): boolean {
+    if (this.nativeConnectedCount > 0 || isTauriEnvironment()) {
+      return this.nativeConnectedCount > 0;
+    }
     return this.previousButtonStates.has(gamepadIndex);
   }
 
   public hasConnectedGamepad(): boolean {
+    if (this.nativeConnectedCount > 0 || isTauriEnvironment()) {
+      return this.nativeConnectedCount > 0;
+    }
     if (this.previousButtonStates.size > 0) return true;
     if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
       try {
@@ -414,10 +564,16 @@ export class GamepadManager {
   }
 
   public getConnectedCount(): number {
+    if (this.nativeConnectedCount > 0 || isTauriEnvironment()) {
+      return this.nativeConnectedCount;
+    }
     return this.previousButtonStates.size;
   }
 
   public isButtonPressed(gamepadIndex: number, buttonId: GamepadButtonId): boolean {
+    if (this.nativePressedButtons.size > 0 || isTauriEnvironment()) {
+      return this.nativePressedButtons.has(buttonId);
+    }
     const states = this.previousButtonStates.get(gamepadIndex);
     if (!states) return false;
     for (let idx = 0; idx < states.length; idx++) {
@@ -432,6 +588,9 @@ export class GamepadManager {
     gamepadIndex: number,
     direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
   ): boolean {
+    if (this.nativePressedButtons.size > 0 || isTauriEnvironment()) {
+      return this.nativePressedButtons.has(direction);
+    }
     const axis = this.previousAxisStates.get(gamepadIndex);
     if (!axis) return false;
     if (direction === 'UP') return axis.up;

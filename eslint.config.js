@@ -82,6 +82,7 @@ export default tseslint.config(
       'legacy/**',
       'assets/**',
       'scripts/**',
+      'scratch/**',
       '*.config.js',
     ],
   }

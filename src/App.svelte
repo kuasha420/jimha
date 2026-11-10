@@ -10,6 +10,7 @@
   import { RekkaBuffer, KONAMI_SEQUENCE, QUICK_SWITCH_SEQUENCE } from './lib/engine/rekka';
   import {
     GamepadManager,
+    isTauriEnvironment,
     type GamepadButtonEvent,
     type GamepadButtonId,
   } from './lib/engine/gamepad';
@@ -473,8 +474,8 @@
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    // 0. Pre-flight Gamepad poll: if a physical controller button was pressed, process it first
-    if (gamepadManager) {
+    // 0. Pre-flight Gamepad poll: if in browser fallback mode, poll standard Gamepad API
+    if (gamepadManager && !isTauriEnvironment()) {
       gamepadManager.poll();
     }
 
@@ -708,6 +709,8 @@
   function handleBlur(): void {
     pressedKeys.clear();
     pressedGamepadButtons.clear();
+    gamepadManager?.resetState();
+    void callTauri('gamepad_reset_state');
     isEscPressed = false;
     escHoldProgress = 0;
     isAltTabPressed = false;
@@ -788,6 +791,12 @@
       rekkaBuffer: rekka,
       onButtonDown: handleGamepadButtonDown,
       onButtonUp: handleGamepadButtonUp,
+      onDisconnected: () => {
+        pressedGamepadButtons.clear();
+        isGamepadExitPressed = false;
+        gamepadExitHoldProgress = 0;
+        isL3R3Pressed = false;
+      },
     });
     gamepadManager.attach();
 
