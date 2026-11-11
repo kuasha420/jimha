@@ -29,7 +29,8 @@
     "verify": "pnpm build && pnpm check && pnpm lint && pnpm clippy && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && pnpm test && pnpm test:rust",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build --no-bundle"
+    "tauri:build": "tauri build --no-bundle",
+    "test:pkg": "vitest --project"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
