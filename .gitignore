@@ -32,9 +32,11 @@ pkg/
 *.swp
 *~
 
-# Agent artifacts bridge
+# Agent artifacts bridge & Agyis runtime locals
 .agents/artifacts
 .agents/teamwork/
+.agents/archive/
+.agyis/
 data/
 *.db
 

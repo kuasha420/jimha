@@ -1,4 +1,11 @@
 <!-- Added by AGYIS-HARNESS -->
+
+---
+
+trigger: manual
+description: Universal agent rules template for target workspace onboarding
+---
+
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Arafat Zahan (@kuasha420) -->
 <!-- Corporate Stewardship & Infrastructure: Purrfect Software Limited (PSL) -->
@@ -15,6 +22,20 @@ These operational rules govern cognitive behavior and human-in-the-loop alignmen
 _Explicit CLI palettes yield 10x lower human intervention rates:_
 
 ```bash
+# 🧪 Project Verification & Native Toolchain
+pnpm test                                      # Run complete project test suite
+pnpm build                                     # Build project artifacts
+pnpm lint                                      # Code quality & linting checks
+pnpm dev                                       # Start local development server
+pnpm check                                     # Verification & type check
+pnpm format                                    # Code style & formatting
+pnpm preview                                   # Execute preview
+pnpm check:watch                               # Execute check:watch
+pnpm lint:fix                                  # Execute lint:fix
+pnpm lint:diff                                 # Execute lint:diff
+pnpm format:check                              # Execute format:check
+pnpm format:diff                               # Execute format:diff
+
 # 🩺 Environment Diagnostics & Auto-Healing
 agyis doctor                                   # Audit workstation runtimes & auto-heal
 agyis status                                   # Print harness health, active hooks & telemetry
@@ -114,3 +135,40 @@ _Trajectories <50 steps / <50k tokens maintain 0.8 errors/session; >200 steps su
 3. **Clear Error Reporting**: If a command fails twice, stop thrashing. State the error concisely and propose a concrete path forward.
 
 <!-- End AGYIS-HARNESS -->
+
+---
+
+## Jimha Project Context & Multi-Stack Standards
+
+### Active Technology Stacks & Architectural Roles
+
+- **Frontend / Desktop UI (`typescript` / `desktop_gui` / `frontend`)**: TypeScript 6, Svelte 5 Runes, Pixi.js v8, Vite 8, Vitest 5 (`happy-dom`) in `src/`.
+- **Native Desktop Backend & Audio/Input (`rust` / `audio` / `desktop_gui`)**: Rust (Edition 2021), Tauri v2, `rodio`, `gilrs`, and Wayland/KWin kiosk integration in `src-tauri/`.
+- **Systems, Packaging & Automation (`systems` / `shell`)**: Bash scripts in `scripts/`, Arch `PKGBUILD`, Flatpak (`org.purrfect.jimha.yml`), and XDG desktop/metainfo files.
+- **Historical Archive**: `legacy/python_prototype/` is archival reference only — **not** an active Python runtime stack.
+
+### Full Multi-Stack Verification Commands
+
+```bash
+pnpm verify                                    # Full 7-tier gate (build, check, lint, clippy, cargo fmt, vitest, cargo test)
+pnpm verify:diff                               # Fast diff gate (eslint diff, vitest related, cargo clippy)
+pnpm test:diff                                 # Sub-second Vitest diff-targeted tests
+pnpm test:rust                                 # Rust unit tests (cargo test --manifest-path src-tauri/Cargo.toml)
+pnpm clippy                                    # Rust Clippy strict lints (-D warnings)
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+pnpm tauri:dev                                 # Launch Tauri desktop dev mode
+pnpm tauri:build                               # Build Tauri desktop binary (--no-bundle)
+agyis test && agyis test --diff                # Harness verification & completion-fence clearance
+```
+
+### Global Layer 1 Skills (Single-Source)
+
+Do **not** copy global plugin skills into `.agents/skills/`. Use the globally loaded Layer 1 skills directly:
+
+- `psl-stack-typescript`, `psl-test-node`, `modern-web-guidance`, `psl-test-harmonize`
+- `psl-test-cargo`, `psl-stack-systems`, `psl-stack-shell`
+- `display-ops`, `audio-ops`
+
+### Sovereign & Child-Safety Domain Invariants
+
+- Follow `docs/DAD_MODE_INVARIANTS.md` and `docs/ARCHITECTURE.md`: 100% air-gapped sovereign app (0 network sockets/telemetry), 25-bubble FIFO ceiling, 2.5s parent hold-to-exit gate, and strict Rust safety (`unsafe_code = "forbid"`, `unwrap_used = "deny"`).
