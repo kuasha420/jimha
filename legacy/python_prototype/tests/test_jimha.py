@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# aff: exempt
 """
 Automated unit tests for JimHa standalone game.
 """

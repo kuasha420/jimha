@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# aff: exempt
 """
 JimHa's Magical Key Smash Game
 A fullscreen, kid-friendly interactive wonderland for JimHa.
